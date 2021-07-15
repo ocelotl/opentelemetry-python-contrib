@@ -16,14 +16,14 @@ python:
     # doesn't work for pkg_resources.
     # Keep these packages in sync with tox.ini.
     - method: pip
-      path: opentelemetry-api
+      path: -e "git+https://github.com/open-telemetry/opentelemetry-python.git#egg=opentelemetry-api&subdirectory=opentelemetry-api"
     - method: pip
-      path: opentelemetry-semantic-conventions
+      path: -e "git+https://github.com/open-telemetry/opentelemetry-python.git#egg=opentelemetry-semantic-conventions&subdirectory=opentelemetry-semantic-conventions"
     - method: pip
-      path: opentelemetry-instrumentation
+      path: -e "git+https://github.com/open-telemetry/opentelemetry-python-contrib.git#egg=opentelemetry-instrumentation&subdirectory=opentelemetry-instrumentation"
     - method: pip
-      path: opentelemetry-sdk
+      path: -e "git+https://github.com/open-telemetry/opentelemetry-python.git#egg=opentelemetry-sdk&subdirectory=opentelemetry-sdk"
     - method: pip
-      path: opentelemetry-test
+      path: -e "git+https://github.com/open-telemetry/opentelemetry-python.git#egg=opentelemetry-test&subdirectory=tests/util"
     - method: pip
-      path: opentelemetry-util-http
+      path: -e "git+https://github.com/open-telemetry/opentelemetry-python-contrib.git#egg=opentelemetry-util-http&subdirectory=util/opentelemetry-util-http"
