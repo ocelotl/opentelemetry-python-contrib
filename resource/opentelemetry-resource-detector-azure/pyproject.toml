@@ -38,7 +38,7 @@ azure_vm = "opentelemetry.resource.detector.azure.vm:AzureVMResourceDetector"
 Homepage = "https://github.com/open-telemetry/opentelemetry-python-contrib/tree/main/resource/opentelemetry-resource-detector-azure"
 
 [tool.hatch.version]
-path = "src/opentelemetry/resource/detector/azure/version.py"
+path = "src/opentelemetry/resource/detector/azure/version/__init__.py"
 
 [tool.hatch.build.targets.sdist]
 include = [

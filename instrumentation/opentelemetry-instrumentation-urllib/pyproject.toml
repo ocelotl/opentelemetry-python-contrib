@@ -41,7 +41,7 @@ urllib = "opentelemetry.instrumentation.urllib:URLLibInstrumentor"
 Homepage = "https://github.com/open-telemetry/opentelemetry-python-contrib/tree/main/instrumentation/opentelemetry-instrumentation-urllib"
 
 [tool.hatch.version]
-path = "src/opentelemetry/instrumentation/urllib/version.py"
+path = "src/opentelemetry/instrumentation/urllib/version/__init__.py"
 
 [tool.hatch.build.targets.sdist]
 include = [

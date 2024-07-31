@@ -42,7 +42,7 @@ asyncpg = "opentelemetry.instrumentation.asyncpg:AsyncPGInstrumentor"
 Homepage = "https://github.com/open-telemetry/opentelemetry-python-contrib/tree/main/instrumentation/opentelemetry-instrumentation-asyncpg"
 
 [tool.hatch.version]
-path = "src/opentelemetry/instrumentation/asyncpg/version.py"
+path = "src/opentelemetry/instrumentation/asyncpg/version/__init__.py"
 
 [tool.hatch.build.targets.sdist]
 include = [

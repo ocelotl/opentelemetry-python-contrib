@@ -39,7 +39,7 @@ logging = "opentelemetry.instrumentation.logging:LoggingInstrumentor"
 Homepage = "https://github.com/open-telemetry/opentelemetry-python-contrib/tree/main/instrumentation/opentelemetry-instrumentation-logging"
 
 [tool.hatch.version]
-path = "src/opentelemetry/instrumentation/logging/version.py"
+path = "src/opentelemetry/instrumentation/logging/version/__init__.py"
 
 [tool.hatch.build.targets.sdist]
 include = [

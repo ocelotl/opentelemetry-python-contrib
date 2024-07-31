@@ -43,7 +43,7 @@ pymemcache = "opentelemetry.instrumentation.pymemcache:PymemcacheInstrumentor"
 Homepage = "https://github.com/open-telemetry/opentelemetry-python-contrib/tree/main/instrumentation/opentelemetry-instrumentation-pymemcache"
 
 [tool.hatch.version]
-path = "src/opentelemetry/instrumentation/pymemcache/version.py"
+path = "src/opentelemetry/instrumentation/pymemcache/version/__init__.py"
 
 [tool.hatch.build.targets.sdist]
 include = [

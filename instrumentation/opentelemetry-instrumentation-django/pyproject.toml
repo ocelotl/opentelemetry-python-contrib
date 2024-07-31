@@ -47,7 +47,7 @@ django = "opentelemetry.instrumentation.django:DjangoInstrumentor"
 Homepage = "https://github.com/open-telemetry/opentelemetry-python-contrib/tree/main/instrumentation/opentelemetry-instrumentation-django"
 
 [tool.hatch.version]
-path = "src/opentelemetry/instrumentation/django/version.py"
+path = "src/opentelemetry/instrumentation/django/version/__init__.py"
 
 [tool.hatch.build.targets.sdist]
 include = [

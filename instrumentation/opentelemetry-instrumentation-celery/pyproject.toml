@@ -42,7 +42,7 @@ celery = "opentelemetry.instrumentation.celery:CeleryInstrumentor"
 Homepage = "https://github.com/open-telemetry/opentelemetry-python-contrib/tree/main/instrumentation/opentelemetry-instrumentation-celery"
 
 [tool.hatch.version]
-path = "src/opentelemetry/instrumentation/celery/version.py"
+path = "src/opentelemetry/instrumentation/celery/version/__init__.py"
 
 [tool.hatch.build.targets.sdist]
 include = [

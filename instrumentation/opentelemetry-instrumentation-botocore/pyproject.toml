@@ -43,7 +43,7 @@ botocore = "opentelemetry.instrumentation.botocore:BotocoreInstrumentor"
 Homepage = "https://github.com/open-telemetry/opentelemetry-python-contrib/tree/main/instrumentation/opentelemetry-instrumentation-botocore"
 
 [tool.hatch.version]
-path = "src/opentelemetry/instrumentation/botocore/version.py"
+path = "src/opentelemetry/instrumentation/botocore/version/__init__.py"
 
 [tool.hatch.build.targets.sdist]
 include = [

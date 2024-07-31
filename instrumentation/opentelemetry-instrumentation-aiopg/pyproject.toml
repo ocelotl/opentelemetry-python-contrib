@@ -43,7 +43,7 @@ aiopg = "opentelemetry.instrumentation.aiopg:AiopgInstrumentor"
 Homepage = "https://github.com/open-telemetry/opentelemetry-python-contrib/tree/main/instrumentation/opentelemetry-instrumentation-aiopg"
 
 [tool.hatch.version]
-path = "src/opentelemetry/instrumentation/aiopg/version.py"
+path = "src/opentelemetry/instrumentation/aiopg/version/__init__.py"
 
 [tool.hatch.build.targets.sdist]
 include = [
