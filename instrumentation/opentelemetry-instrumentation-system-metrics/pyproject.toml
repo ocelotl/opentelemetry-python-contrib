@@ -42,7 +42,7 @@ system_metrics = "opentelemetry.instrumentation.system_metrics:SystemMetricsInst
 Homepage = "https://github.com/open-telemetry/opentelemetry-python-contrib/tree/main/instrumentation/opentelemetry-instrumentation-system-metrics"
 
 [tool.hatch.version]
-path = "src/opentelemetry/instrumentation/system_metrics/version/__init__.py"
+path = "src/opentelemetry/instrumentation/system_metrics/version.py"
 
 [tool.hatch.build.targets.sdist]
 include = [

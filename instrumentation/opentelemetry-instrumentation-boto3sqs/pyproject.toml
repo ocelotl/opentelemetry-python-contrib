@@ -43,7 +43,7 @@ boto3 = "opentelemetry.instrumentation.boto3sqs:Boto3SQSInstrumentor"
 Homepage = "https://github.com/open-telemetry/opentelemetry-python-contrib/tree/main/instrumentation/opentelemetry-instrumentation-boto3sqs"
 
 [tool.hatch.version]
-path = "src/opentelemetry/instrumentation/boto3sqs/version/__init__.py"
+path = "src/opentelemetry/instrumentation/boto3sqs/version.py"
 
 [tool.hatch.build.targets.sdist]
 include = [

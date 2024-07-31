@@ -36,7 +36,7 @@ ottrace = "opentelemetry.propagators.ot_trace:OTTracePropagator"
 Homepage = "https://github.com/open-telemetry/opentelemetry-python-contrib/tree/main/propagator/opentelemetry-propagator-ot-trace"
 
 [tool.hatch.version]
-path = "src/opentelemetry/propagators/ot_trace/version/__init__.py"
+path = "src/opentelemetry/propagators/ot_trace/version.py"
 
 [tool.hatch.build.targets.sdist]
 include = [

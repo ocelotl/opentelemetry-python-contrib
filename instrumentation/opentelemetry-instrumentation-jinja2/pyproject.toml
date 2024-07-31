@@ -42,7 +42,7 @@ jinja2 = "opentelemetry.instrumentation.jinja2:Jinja2Instrumentor"
 Homepage = "https://github.com/open-telemetry/opentelemetry-python-contrib/tree/main/instrumentation/opentelemetry-instrumentation-jinja2"
 
 [tool.hatch.version]
-path = "src/opentelemetry/instrumentation/jinja2/version/__init__.py"
+path = "src/opentelemetry/instrumentation/jinja2/version.py"
 
 [tool.hatch.build.targets.sdist]
 include = [

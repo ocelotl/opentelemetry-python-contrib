@@ -42,7 +42,7 @@ mysql = "opentelemetry.instrumentation.mysql:MySQLInstrumentor"
 Homepage = "https://github.com/open-telemetry/opentelemetry-python-contrib/tree/main/instrumentation/opentelemetry-instrumentation-mysql"
 
 [tool.hatch.version]
-path = "src/opentelemetry/instrumentation/mysql/version/__init__.py"
+path = "src/opentelemetry/instrumentation/mysql/version.py"
 
 [tool.hatch.build.targets.sdist]
 include = [

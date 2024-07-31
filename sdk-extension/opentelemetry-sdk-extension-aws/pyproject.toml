@@ -42,7 +42,7 @@ aws_lambda = "opentelemetry.sdk.extension.aws.resource._lambda:AwsLambdaResource
 Homepage = "https://github.com/open-telemetry/opentelemetry-python-contrib/tree/main/sdk-extension/opentelemetry-sdk-extension-aws"
 
 [tool.hatch.version]
-path = "src/opentelemetry/sdk/extension/aws/version/__init__.py"
+path = "src/opentelemetry/sdk/extension/aws/version.py"
 
 [tool.hatch.build.targets.sdist]
 include = [

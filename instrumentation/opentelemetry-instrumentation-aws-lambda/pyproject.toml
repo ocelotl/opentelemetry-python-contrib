@@ -40,7 +40,7 @@ aws-lambda = "opentelemetry.instrumentation.aws_lambda:AwsLambdaInstrumentor"
 Homepage = "https://github.com/open-telemetry/opentelemetry-python-contrib/tree/main/instrumentation/opentelemetry-instrumentation-aws-lambda"
 
 [tool.hatch.version]
-path = "src/opentelemetry/instrumentation/aws_lambda/version/__init__.py"
+path = "src/opentelemetry/instrumentation/aws_lambda/version.py"
 
 [tool.hatch.build.targets.sdist]
 include = [

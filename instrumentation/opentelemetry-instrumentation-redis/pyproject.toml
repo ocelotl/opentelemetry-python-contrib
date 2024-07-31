@@ -43,7 +43,7 @@ redis = "opentelemetry.instrumentation.redis:RedisInstrumentor"
 Homepage = "https://github.com/open-telemetry/opentelemetry-python-contrib/tree/main/instrumentation/opentelemetry-instrumentation-redis"
 
 [tool.hatch.version]
-path = "src/opentelemetry/instrumentation/redis/version/__init__.py"
+path = "src/opentelemetry/instrumentation/redis/version.py"
 
 [tool.hatch.build.targets.sdist]
 include = [

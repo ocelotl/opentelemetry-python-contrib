@@ -42,7 +42,7 @@ pymongo = "opentelemetry.instrumentation.pymongo:PymongoInstrumentor"
 Homepage = "https://github.com/open-telemetry/opentelemetry-python-contrib/tree/main/instrumentation/opentelemetry-instrumentation-pymongo"
 
 [tool.hatch.version]
-path = "src/opentelemetry/instrumentation/pymongo/version/__init__.py"
+path = "src/opentelemetry/instrumentation/pymongo/version.py"
 
 [tool.hatch.build.targets.sdist]
 include = [

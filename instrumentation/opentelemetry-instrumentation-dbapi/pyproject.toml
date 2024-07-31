@@ -38,7 +38,7 @@ instruments = []
 Homepage = "https://github.com/open-telemetry/opentelemetry-python-contrib/tree/main/instrumentation/opentelemetry-instrumentation-dbapi"
 
 [tool.hatch.version]
-path = "src/opentelemetry/instrumentation/dbapi/version/__init__.py"
+path = "src/opentelemetry/instrumentation/dbapi/version.py"
 
 [tool.hatch.build.targets.sdist]
 include = [

@@ -36,7 +36,7 @@ xray-lambda = "opentelemetry.propagators.aws:AwsXRayLambdaPropagator"
 Homepage = "https://github.com/open-telemetry/opentelemetry-python-contrib/tree/main/propagator/opentelemetry-propagator-aws-xray"
 
 [tool.hatch.version]
-path = "src/opentelemetry/propagators/aws/version/__init__.py"
+path = "src/opentelemetry/propagators/aws/version.py"
 
 [tool.hatch.build.targets.sdist]
 include = [

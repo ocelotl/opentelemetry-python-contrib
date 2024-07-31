@@ -43,7 +43,7 @@ httpx = "opentelemetry.instrumentation.httpx:HTTPXClientInstrumentor"
 Homepage = "https://github.com/open-telemetry/opentelemetry-python-contrib/tree/main/instrumentation/opentelemetry-instrumentation-httpx"
 
 [tool.hatch.version]
-path = "src/opentelemetry/instrumentation/httpx/version/__init__.py"
+path = "src/opentelemetry/instrumentation/httpx/version.py"
 
 [tool.hatch.build.targets.sdist]
 include = [

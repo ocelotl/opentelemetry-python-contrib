@@ -43,7 +43,7 @@ psycopg = "opentelemetry.instrumentation.psycopg:PsycopgInstrumentor"
 Homepage = "https://github.com/open-telemetry/opentelemetry-python-contrib/tree/main/instrumentation/opentelemetry-instrumentation-psycopg"
 
 [tool.hatch.version]
-path = "src/opentelemetry/instrumentation/psycopg/version/__init__.py"
+path = "src/opentelemetry/instrumentation/psycopg/version.py"
 
 [tool.hatch.build.targets.sdist]
 include = [

@@ -46,7 +46,7 @@ distro = "opentelemetry.distro:OpenTelemetryDistro"
 Homepage = "https://github.com/open-telemetry/opentelemetry-python-contrib/tree/main/opentelemetry-distro"
 
 [tool.hatch.version]
-path = "src/opentelemetry/distro/version/__init__.py"
+path = "src/opentelemetry/distro/version.py"
 
 [tool.hatch.build.targets.sdist]
 include = [

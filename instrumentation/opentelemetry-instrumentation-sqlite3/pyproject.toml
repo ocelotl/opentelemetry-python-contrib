@@ -40,7 +40,7 @@ sqlite3 = "opentelemetry.instrumentation.sqlite3:SQLite3Instrumentor"
 Homepage = "https://github.com/open-telemetry/opentelemetry-python-contrib/tree/main/instrumentation/opentelemetry-instrumentation-sqlite3"
 
 [tool.hatch.version]
-path = "src/opentelemetry/instrumentation/sqlite3/version/__init__.py"
+path = "src/opentelemetry/instrumentation/sqlite3/version.py"
 
 [tool.hatch.build.targets.sdist]
 include = [

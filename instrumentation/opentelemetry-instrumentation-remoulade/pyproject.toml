@@ -42,7 +42,7 @@ remoulade = "opentelemetry.instrumentation.remoulade:RemouladeInstrumentor"
 Homepage = "https://github.com/open-telemetry/opentelemetry-python-contrib/tree/main/instrumentation/opentelemetry-instrumentation-remoulade"
 
 [tool.hatch.version]
-path = "src/opentelemetry/instrumentation/remoulade/version/__init__.py"
+path = "src/opentelemetry/instrumentation/remoulade/version.py"
 
 [tool.hatch.build.targets.sdist]
 include = [

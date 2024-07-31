@@ -43,7 +43,7 @@ tortoiseorm = "opentelemetry.instrumentation.tortoiseorm:TortoiseORMInstrumentor
 Homepage = "https://github.com/open-telemetry/opentelemetry-python-contrib/tree/main/instrumentation/opentelemetry-instrumentation-tortoiseorm"
 
 [tool.hatch.version]
-path = "src/opentelemetry/instrumentation/tortoiseorm/version/__init__.py"
+path = "src/opentelemetry/instrumentation/tortoiseorm/version.py"
 
 [tool.hatch.build.targets.sdist]
 include = [

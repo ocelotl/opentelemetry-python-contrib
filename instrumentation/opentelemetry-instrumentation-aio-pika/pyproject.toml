@@ -42,7 +42,7 @@ aio-pika = "opentelemetry.instrumentation.aio_pika:AioPikaInstrumentor"
 Homepage = "https://github.com/open-telemetry/opentelemetry-python-contrib/tree/main/instrumentation/opentelemetry-instrumentation-aio-pika"
 
 [tool.hatch.version]
-path = "src/opentelemetry/instrumentation/aio_pika/version/__init__.py"
+path = "src/opentelemetry/instrumentation/aio_pika/version.py"
 
 [tool.hatch.build.targets.sdist]
 include = [

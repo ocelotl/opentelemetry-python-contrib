@@ -41,7 +41,7 @@ instrumentation = "opentelemetry.instrumentation.environment_variables"
 Homepage = "https://github.com/open-telemetry/opentelemetry-python-contrib/tree/main/opentelemetry-instrumentation"
 
 [tool.hatch.version]
-path = "src/opentelemetry/instrumentation/version/__init__.py"
+path = "src/opentelemetry/instrumentation/version.py"
 
 [tool.hatch.build.targets.sdist]
 include = [

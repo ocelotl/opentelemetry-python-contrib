@@ -45,7 +45,7 @@ pyramid = "opentelemetry.instrumentation.pyramid:PyramidInstrumentor"
 Homepage = "https://github.com/open-telemetry/opentelemetry-python-contrib/tree/main/instrumentation/opentelemetry-instrumentation-pyramid"
 
 [tool.hatch.version]
-path = "src/opentelemetry/instrumentation/pyramid/version/__init__.py"
+path = "src/opentelemetry/instrumentation/pyramid/version.py"
 
 [tool.hatch.build.targets.sdist]
 include = [

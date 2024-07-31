@@ -41,7 +41,7 @@ boto = "opentelemetry.instrumentation.boto:BotoInstrumentor"
 Homepage = "https://github.com/open-telemetry/opentelemetry-python-contrib/tree/main/instrumentation/opentelemetry-instrumentation-boto"
 
 [tool.hatch.version]
-path = "src/opentelemetry/instrumentation/boto/version/__init__.py"
+path = "src/opentelemetry/instrumentation/boto/version.py"
 
 [tool.hatch.build.targets.sdist]
 include = [
