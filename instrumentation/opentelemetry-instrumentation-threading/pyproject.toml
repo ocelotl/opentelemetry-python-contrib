@@ -40,7 +40,7 @@ threading = "opentelemetry.instrumentation.threading:ThreadingInstrumentor"
 Homepage = "https://github.com/open-telemetry/opentelemetry-python-contrib/instrumentation/opentelemetry-instrumentation-threading"
 
 [tool.hatch.version]
-path = "src/opentelemetry/instrumentation/threading/version.py"
+path = "src/opentelemetry/instrumentation/threading/version/__init__.py"
 
 [tool.hatch.build.targets.sdist]
 include = [

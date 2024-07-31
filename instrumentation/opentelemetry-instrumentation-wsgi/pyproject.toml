@@ -38,7 +38,7 @@ instruments = []
 Homepage = "https://github.com/open-telemetry/opentelemetry-python-contrib/tree/main/instrumentation/opentelemetry-instrumentation-wsgi"
 
 [tool.hatch.version]
-path = "src/opentelemetry/instrumentation/wsgi/version.py"
+path = "src/opentelemetry/instrumentation/wsgi/version/__init__.py"
 
 [tool.hatch.build.targets.sdist]
 include = [

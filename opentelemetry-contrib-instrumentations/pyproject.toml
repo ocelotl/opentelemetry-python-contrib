@@ -82,7 +82,7 @@ dependencies = [
 Homepage = "https://github.com/open-telemetry/opentelemetry-python-contrib/tree/main/opentelemetry-contrib-instrumentations"
 
 [tool.hatch.version]
-path = "src/opentelemetry/contrib-instrumentations/version.py"
+path = "src/opentelemetry/contrib-instrumentations/version/__init__.py"
 
 [tool.hatch.build.targets.sdist]
 include = [

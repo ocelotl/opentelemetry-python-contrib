@@ -35,7 +35,7 @@ container = "opentelemetry.resource.detector.container:ContainerResourceDetector
 Homepage = "https://github.com/open-telemetry/opentelemetry-python-contrib/tree/main/resource/opentelemetry-resource-detector-container"
 
 [tool.hatch.version]
-path = "src/opentelemetry/resource/detector/container/version.py"
+path = "src/opentelemetry/resource/detector/container/version/__init__.py"
 
 [tool.hatch.build.targets.sdist]
 include = [

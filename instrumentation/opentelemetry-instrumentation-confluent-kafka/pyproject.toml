@@ -42,7 +42,7 @@ confluent_kafka = "opentelemetry.instrumentation.confluent_kafka:ConfluentKafkaI
 Homepage = "https://github.com/open-telemetry/opentelemetry-python-contrib/tree/main/instrumentation/opentelemetry-instrumentation-confluent-kafka"
 
 [tool.hatch.version]
-path = "src/opentelemetry/instrumentation/confluent_kafka/version.py"
+path = "src/opentelemetry/instrumentation/confluent_kafka/version/__init__.py"
 
 [tool.hatch.build.targets.sdist]
 include = [

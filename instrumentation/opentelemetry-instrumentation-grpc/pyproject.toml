@@ -46,7 +46,7 @@ grpc_aio_server = "opentelemetry.instrumentation.grpc:GrpcAioInstrumentorServer"
 Homepage = "https://github.com/open-telemetry/opentelemetry-python-contrib/tree/main/instrumentation/opentelemetry-instrumentation-grpc"
 
 [tool.hatch.version]
-path = "src/opentelemetry/instrumentation/grpc/version.py"
+path = "src/opentelemetry/instrumentation/grpc/version/__init__.py"
 
 [tool.hatch.build.targets.sdist]
 include = [
