@@ -24,7 +24,7 @@ class OpenTelemetryDistro(BaseDistro):
     """
 
     # pylint: disable=no-self-use
-    def _configure(self, **kwargs):
+    def _configure(self, **kwargs: object) -> None:
         os.environ.setdefault(OTEL_TRACES_EXPORTER, "otlp")
         os.environ.setdefault(OTEL_METRICS_EXPORTER, "otlp")
         os.environ.setdefault(OTEL_LOGS_EXPORTER, "otlp")
