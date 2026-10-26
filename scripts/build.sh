@@ -6,7 +6,7 @@
 set -ev
 
 # Get the latest versions of packaging tools
-python3 -m pip install --upgrade pip build setuptools wheel
+python3 -m pip install --require-hashes -r "$(dirname "$0")/../.github/requirements/build.txt"
 
 BASEDIR=$(dirname "$(readlink -f "$(dirname $0)")")
 DISTDIR=dist

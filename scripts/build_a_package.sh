@@ -34,7 +34,7 @@ fi
 
 
 # Get the latest versions of packaging tools
-python3 -m pip install --upgrade pip build setuptools wheel packaging
+python3 -m pip install --require-hashes -r "$(dirname "$0")/../.github/requirements/build.txt"
 
 # Validate version against PEP 440 conventions: https://packaging.pypa.io/en/latest/version.html
 python3 -c "from packaging.version import Version; Version('${pkg_version}')"
