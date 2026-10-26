@@ -91,7 +91,7 @@ jobs:
           echo "$fragments"
 
       - name: Install towncrier
-        run: pip install towncrier==25.8.0
+        run: pip install --require-hashes -r .github/requirements/towncrier.txt
 
       - name: Preview changelog
         run: towncrier build --draft --version Unreleased

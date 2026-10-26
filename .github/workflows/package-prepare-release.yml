@@ -131,12 +131,12 @@ jobs:
         with:
           python-version: '3.10'
       - name: Install tox
-        run: pip install tox
+        run: pip install --require-hashes -r .github/requirements/tox.txt
       - name: run tox
         run: tox -e generate
 
       - name: Install towncrier
-        run: pip install towncrier==25.8.0
+        run: pip install --require-hashes -r .github/requirements/towncrier.txt
 
       - name: Generate changelog
         run: towncrier build --yes --version "$VERSION" --dir "$(dirname $CHANGELOG)"
@@ -202,12 +202,12 @@ jobs:
         with:
           python-version: '3.10'
       - name: Install tox
-        run: pip install tox
+        run: pip install --require-hashes -r .github/requirements/tox.txt
       - name: run tox
         run: tox -e generate
 
       - name: Install towncrier
-        run: pip install towncrier==25.8.0
+        run: pip install --require-hashes -r .github/requirements/towncrier.txt
 
       - name: Generate changelog
         run: towncrier build --yes --version "$VERSION" --dir "$(dirname $CHANGELOG)"
