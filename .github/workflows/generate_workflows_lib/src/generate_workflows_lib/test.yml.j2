@@ -44,7 +44,7 @@ jobs:
           python-version: "{{ job_data.python_version }}"
 
       - name: Install tox
-        run: pip install tox-uv
+        run: pip install --require-hashes -r .github/requirements/tox.txt
       {%- if job_data.os == "windows-latest" %}
 
       - name: Configure git to support long filenames

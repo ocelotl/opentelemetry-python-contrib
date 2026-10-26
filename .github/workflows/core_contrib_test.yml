@@ -54,7 +54,7 @@ jobs:
           architecture: "x64"
 
       - name: Install tox
-        run: pip install tox-uv
+        run: pip install --require-hashes -r .github/requirements/tox.txt
 
       - name: Run tests
         run: tox -e py310-test-instrumentation-openai-v2-oldest -- -ra
@@ -86,7 +86,7 @@ jobs:
           architecture: "x64"
 
       - name: Install tox
-        run: pip install tox-uv
+        run: pip install --require-hashes -r .github/requirements/tox.txt
 
       - name: Run tests
         run: tox -e py310-test-instrumentation-openai-v2-latest -- -ra
@@ -118,7 +118,7 @@ jobs:
           architecture: "x64"
 
       - name: Install tox
-        run: pip install tox-uv
+        run: pip install --require-hashes -r .github/requirements/tox.txt
 
       - name: Run tests
         run: tox -e py310-test-instrumentation-openai_agents-v2-oldest -- -ra
@@ -150,7 +150,7 @@ jobs:
           architecture: "x64"
 
       - name: Install tox
-        run: pip install tox-uv
+        run: pip install --require-hashes -r .github/requirements/tox.txt
 
       - name: Run tests
         run: tox -e py310-test-instrumentation-openai_agents-v2-latest -- -ra
@@ -182,7 +182,7 @@ jobs:
           architecture: "x64"
 
       - name: Install tox
-        run: pip install tox-uv
+        run: pip install --require-hashes -r .github/requirements/tox.txt
 
       - name: Run tests
         run: tox -e py310-test-instrumentation-vertexai-oldest -- -ra
@@ -214,7 +214,7 @@ jobs:
           architecture: "x64"
 
       - name: Install tox
-        run: pip install tox-uv
+        run: pip install --require-hashes -r .github/requirements/tox.txt
 
       - name: Run tests
         run: tox -e py310-test-instrumentation-vertexai-latest -- -ra
@@ -246,7 +246,7 @@ jobs:
           architecture: "x64"
 
       - name: Install tox
-        run: pip install tox-uv
+        run: pip install --require-hashes -r .github/requirements/tox.txt
 
       - name: Run tests
         run: tox -e py310-test-resource-detector-containerid -- -ra
@@ -278,7 +278,7 @@ jobs:
           architecture: "x64"
 
       - name: Install tox
-        run: pip install tox-uv
+        run: pip install --require-hashes -r .github/requirements/tox.txt
 
       - name: Run tests
         run: tox -e py310-test-resource-detector-azure-0 -- -ra
@@ -310,7 +310,7 @@ jobs:
           architecture: "x64"
 
       - name: Install tox
-        run: pip install tox-uv
+        run: pip install --require-hashes -r .github/requirements/tox.txt
 
       - name: Run tests
         run: tox -e py310-test-resource-detector-azure-1 -- -ra
@@ -342,7 +342,7 @@ jobs:
           architecture: "x64"
 
       - name: Install tox
-        run: pip install tox-uv
+        run: pip install --require-hashes -r .github/requirements/tox.txt
 
       - name: Run tests
         run: tox -e py310-test-resourcedetector-gcp-0 -- -ra
@@ -374,7 +374,7 @@ jobs:
           architecture: "x64"
 
       - name: Install tox
-        run: pip install tox-uv
+        run: pip install --require-hashes -r .github/requirements/tox.txt
 
       - name: Run tests
         run: tox -e py310-test-resourcedetector-gcp-1 -- -ra
@@ -406,7 +406,7 @@ jobs:
           architecture: "x64"
 
       - name: Install tox
-        run: pip install tox-uv
+        run: pip install --require-hashes -r .github/requirements/tox.txt
 
       - name: Run tests
         run: tox -e py310-test-sdk-extension-aws-0 -- -ra
@@ -438,7 +438,7 @@ jobs:
           architecture: "x64"
 
       - name: Install tox
-        run: pip install tox-uv
+        run: pip install --require-hashes -r .github/requirements/tox.txt
 
       - name: Run tests
         run: tox -e py310-test-sdk-extension-aws-1 -- -ra
@@ -470,7 +470,7 @@ jobs:
           architecture: "x64"
 
       - name: Install tox
-        run: pip install tox-uv
+        run: pip install --require-hashes -r .github/requirements/tox.txt
 
       - name: Run tests
         run: tox -e py310-test-distro -- -ra
@@ -502,7 +502,7 @@ jobs:
           architecture: "x64"
 
       - name: Install tox
-        run: pip install tox-uv
+        run: pip install --require-hashes -r .github/requirements/tox.txt
 
       - name: Run tests
         run: tox -e py310-test-opentelemetry-instrumentation-wrapt1 -- -ra
@@ -534,7 +534,7 @@ jobs:
           architecture: "x64"
 
       - name: Install tox
-        run: pip install tox-uv
+        run: pip install --require-hashes -r .github/requirements/tox.txt
 
       - name: Run tests
         run: tox -e py310-test-opentelemetry-instrumentation-wrapt2 -- -ra
@@ -566,7 +566,7 @@ jobs:
           architecture: "x64"
 
       - name: Install tox
-        run: pip install tox-uv
+        run: pip install --require-hashes -r .github/requirements/tox.txt
 
       - name: Run tests
         run: tox -e py310-test-instrumentation-aiohttp-client -- -ra
@@ -598,7 +598,7 @@ jobs:
           architecture: "x64"
 
       - name: Install tox
-        run: pip install tox-uv
+        run: pip install --require-hashes -r .github/requirements/tox.txt
 
       - name: Run tests
         run: tox -e py310-test-instrumentation-aiohttp-server -- -ra
@@ -630,7 +630,7 @@ jobs:
           architecture: "x64"
 
       - name: Install tox
-        run: pip install tox-uv
+        run: pip install --require-hashes -r .github/requirements/tox.txt
 
       - name: Run tests
         run: tox -e py310-test-instrumentation-aiopg-wrapt1 -- -ra
@@ -662,7 +662,7 @@ jobs:
           architecture: "x64"
 
       - name: Install tox
-        run: pip install tox-uv
+        run: pip install --require-hashes -r .github/requirements/tox.txt
 
       - name: Run tests
         run: tox -e py310-test-instrumentation-aiopg-wrapt2 -- -ra
@@ -694,7 +694,7 @@ jobs:
           architecture: "x64"
 
       - name: Install tox
-        run: pip install tox-uv
+        run: pip install --require-hashes -r .github/requirements/tox.txt
 
       - name: Run tests
         run: tox -e py310-test-instrumentation-aws-lambda -- -ra
@@ -726,7 +726,7 @@ jobs:
           architecture: "x64"
 
       - name: Install tox
-        run: pip install tox-uv
+        run: pip install --require-hashes -r .github/requirements/tox.txt
 
       - name: Run tests
         run: tox -e py310-test-instrumentation-botocore-0-wrapt1 -- -ra
@@ -758,7 +758,7 @@ jobs:
           architecture: "x64"
 
       - name: Install tox
-        run: pip install tox-uv
+        run: pip install --require-hashes -r .github/requirements/tox.txt
 
       - name: Run tests
         run: tox -e py310-test-instrumentation-botocore-0-wrapt2 -- -ra
@@ -790,7 +790,7 @@ jobs:
           architecture: "x64"
 
       - name: Install tox
-        run: pip install tox-uv
+        run: pip install --require-hashes -r .github/requirements/tox.txt
 
       - name: Run tests
         run: tox -e py310-test-instrumentation-botocore-1-wrapt1 -- -ra
@@ -822,7 +822,7 @@ jobs:
           architecture: "x64"
 
       - name: Install tox
-        run: pip install tox-uv
+        run: pip install --require-hashes -r .github/requirements/tox.txt
 
       - name: Run tests
         run: tox -e py310-test-instrumentation-botocore-1-wrapt2 -- -ra
@@ -854,7 +854,7 @@ jobs:
           architecture: "x64"
 
       - name: Install tox
-        run: pip install tox-uv
+        run: pip install --require-hashes -r .github/requirements/tox.txt
 
       - name: Run tests
         run: tox -e py310-test-instrumentation-botocore-2 -- -ra
@@ -886,7 +886,7 @@ jobs:
           architecture: "x64"
 
       - name: Install tox
-        run: pip install tox-uv
+        run: pip install --require-hashes -r .github/requirements/tox.txt
 
       - name: Run tests
         run: tox -e py310-test-instrumentation-botocore-3 -- -ra
@@ -918,7 +918,7 @@ jobs:
           architecture: "x64"
 
       - name: Install tox
-        run: pip install tox-uv
+        run: pip install --require-hashes -r .github/requirements/tox.txt
 
       - name: Run tests
         run: tox -e py310-test-instrumentation-boto3sqs -- -ra
@@ -950,7 +950,7 @@ jobs:
           architecture: "x64"
 
       - name: Install tox
-        run: pip install tox-uv
+        run: pip install --require-hashes -r .github/requirements/tox.txt
 
       - name: Run tests
         run: tox -e py310-test-instrumentation-django-0 -- -ra
@@ -982,7 +982,7 @@ jobs:
           architecture: "x64"
 
       - name: Install tox
-        run: pip install tox-uv
+        run: pip install --require-hashes -r .github/requirements/tox.txt
 
       - name: Run tests
         run: tox -e py310-test-instrumentation-django-1 -- -ra
@@ -1014,7 +1014,7 @@ jobs:
           architecture: "x64"
 
       - name: Install tox
-        run: pip install tox-uv
+        run: pip install --require-hashes -r .github/requirements/tox.txt
 
       - name: Run tests
         run: tox -e py310-test-instrumentation-django-2 -- -ra
@@ -1046,7 +1046,7 @@ jobs:
           architecture: "x64"
 
       - name: Install tox
-        run: pip install tox-uv
+        run: pip install --require-hashes -r .github/requirements/tox.txt
 
       - name: Run tests
         run: tox -e py310-test-instrumentation-django-3 -- -ra
@@ -1078,7 +1078,7 @@ jobs:
           architecture: "x64"
 
       - name: Install tox
-        run: pip install tox-uv
+        run: pip install --require-hashes -r .github/requirements/tox.txt
 
       - name: Run tests
         run: tox -e py310-test-instrumentation-dbapi-wrapt1 -- -ra
@@ -1110,7 +1110,7 @@ jobs:
           architecture: "x64"
 
       - name: Install tox
-        run: pip install tox-uv
+        run: pip install --require-hashes -r .github/requirements/tox.txt
 
       - name: Run tests
         run: tox -e py310-test-instrumentation-dbapi-wrapt2 -- -ra
@@ -1142,7 +1142,7 @@ jobs:
           architecture: "x64"
 
       - name: Install tox
-        run: pip install tox-uv
+        run: pip install --require-hashes -r .github/requirements/tox.txt
 
       - name: Run tests
         run: tox -e py310-test-instrumentation-asyncclick-oldest -- -ra
@@ -1174,7 +1174,7 @@ jobs:
           architecture: "x64"
 
       - name: Install tox
-        run: pip install tox-uv
+        run: pip install --require-hashes -r .github/requirements/tox.txt
 
       - name: Run tests
         run: tox -e py310-test-instrumentation-asyncclick-latest -- -ra
@@ -1206,7 +1206,7 @@ jobs:
           architecture: "x64"
 
       - name: Install tox
-        run: pip install tox-uv
+        run: pip install --require-hashes -r .github/requirements/tox.txt
 
       - name: Run tests
         run: tox -e py310-test-instrumentation-click -- -ra
@@ -1238,7 +1238,7 @@ jobs:
           architecture: "x64"
 
       - name: Install tox
-        run: pip install tox-uv
+        run: pip install --require-hashes -r .github/requirements/tox.txt
 
       - name: Run tests
         run: tox -e py310-test-instrumentation-falcon-1 -- -ra
@@ -1270,7 +1270,7 @@ jobs:
           architecture: "x64"
 
       - name: Install tox
-        run: pip install tox-uv
+        run: pip install --require-hashes -r .github/requirements/tox.txt
 
       - name: Run tests
         run: tox -e py310-test-instrumentation-falcon-2 -- -ra
@@ -1302,7 +1302,7 @@ jobs:
           architecture: "x64"
 
       - name: Install tox
-        run: pip install tox-uv
+        run: pip install --require-hashes -r .github/requirements/tox.txt
 
       - name: Run tests
         run: tox -e py310-test-instrumentation-falcon-3 -- -ra
@@ -1334,7 +1334,7 @@ jobs:
           architecture: "x64"
 
       - name: Install tox
-        run: pip install tox-uv
+        run: pip install --require-hashes -r .github/requirements/tox.txt
 
       - name: Run tests
         run: tox -e py310-test-instrumentation-falcon-4 -- -ra
@@ -1366,7 +1366,7 @@ jobs:
           architecture: "x64"
 
       - name: Install tox
-        run: pip install tox-uv
+        run: pip install --require-hashes -r .github/requirements/tox.txt
 
       - name: Run tests
         run: tox -e py310-test-instrumentation-fastapi-oldest -- -ra
@@ -1398,7 +1398,7 @@ jobs:
           architecture: "x64"
 
       - name: Install tox
-        run: pip install tox-uv
+        run: pip install --require-hashes -r .github/requirements/tox.txt
 
       - name: Run tests
         run: tox -e py310-test-instrumentation-fastapi-latest -- -ra
@@ -1430,7 +1430,7 @@ jobs:
           architecture: "x64"
 
       - name: Install tox
-        run: pip install tox-uv
+        run: pip install --require-hashes -r .github/requirements/tox.txt
 
       - name: Run tests
         run: tox -e py310-test-instrumentation-flask-0 -- -ra
@@ -1462,7 +1462,7 @@ jobs:
           architecture: "x64"
 
       - name: Install tox
-        run: pip install tox-uv
+        run: pip install --require-hashes -r .github/requirements/tox.txt
 
       - name: Run tests
         run: tox -e py310-test-instrumentation-flask-1 -- -ra
@@ -1494,7 +1494,7 @@ jobs:
           architecture: "x64"
 
       - name: Install tox
-        run: pip install tox-uv
+        run: pip install --require-hashes -r .github/requirements/tox.txt
 
       - name: Run tests
         run: tox -e py310-test-instrumentation-flask-2 -- -ra
@@ -1526,7 +1526,7 @@ jobs:
           architecture: "x64"
 
       - name: Install tox
-        run: pip install tox-uv
+        run: pip install --require-hashes -r .github/requirements/tox.txt
 
       - name: Run tests
         run: tox -e py310-test-instrumentation-flask-3 -- -ra
@@ -1558,7 +1558,7 @@ jobs:
           architecture: "x64"
 
       - name: Install tox
-        run: pip install tox-uv
+        run: pip install --require-hashes -r .github/requirements/tox.txt
 
       - name: Run tests
         run: tox -e py310-test-instrumentation-urllib -- -ra
@@ -1590,7 +1590,7 @@ jobs:
           architecture: "x64"
 
       - name: Install tox
-        run: pip install tox-uv
+        run: pip install --require-hashes -r .github/requirements/tox.txt
 
       - name: Run tests
         run: tox -e py310-test-instrumentation-urllib3-0 -- -ra
@@ -1622,7 +1622,7 @@ jobs:
           architecture: "x64"
 
       - name: Install tox
-        run: pip install tox-uv
+        run: pip install --require-hashes -r .github/requirements/tox.txt
 
       - name: Run tests
         run: tox -e py310-test-instrumentation-urllib3-1 -- -ra
@@ -1654,7 +1654,7 @@ jobs:
           architecture: "x64"
 
       - name: Install tox
-        run: pip install tox-uv
+        run: pip install --require-hashes -r .github/requirements/tox.txt
 
       - name: Run tests
         run: tox -e py310-test-instrumentation-requests -- -ra
@@ -1686,7 +1686,7 @@ jobs:
           architecture: "x64"
 
       - name: Install tox
-        run: pip install tox-uv
+        run: pip install --require-hashes -r .github/requirements/tox.txt
 
       - name: Run tests
         run: tox -e py310-test-instrumentation-starlette-oldest -- -ra
@@ -1718,7 +1718,7 @@ jobs:
           architecture: "x64"
 
       - name: Install tox
-        run: pip install tox-uv
+        run: pip install --require-hashes -r .github/requirements/tox.txt
 
       - name: Run tests
         run: tox -e py310-test-instrumentation-starlette-latest -- -ra
@@ -1750,7 +1750,7 @@ jobs:
           architecture: "x64"
 
       - name: Install tox
-        run: pip install tox-uv
+        run: pip install --require-hashes -r .github/requirements/tox.txt
 
       - name: Run tests
         run: tox -e py310-test-instrumentation-structlog-oldest -- -ra
@@ -1782,7 +1782,7 @@ jobs:
           architecture: "x64"
 
       - name: Install tox
-        run: pip install tox-uv
+        run: pip install --require-hashes -r .github/requirements/tox.txt
 
       - name: Run tests
         run: tox -e py310-test-instrumentation-structlog-latest -- -ra
@@ -1814,7 +1814,7 @@ jobs:
           architecture: "x64"
 
       - name: Install tox
-        run: pip install tox-uv
+        run: pip install --require-hashes -r .github/requirements/tox.txt
 
       - name: Run tests
         run: tox -e py310-test-instrumentation-jinja2 -- -ra
@@ -1846,7 +1846,7 @@ jobs:
           architecture: "x64"
 
       - name: Install tox
-        run: pip install tox-uv
+        run: pip install --require-hashes -r .github/requirements/tox.txt
 
       - name: Run tests
         run: tox -e py310-test-instrumentation-logging -- -ra
@@ -1878,7 +1878,7 @@ jobs:
           architecture: "x64"
 
       - name: Install tox
-        run: pip install tox-uv
+        run: pip install --require-hashes -r .github/requirements/tox.txt
 
       - name: Run tests
         run: tox -e py310-test-instrumentation-exceptions -- -ra
@@ -1910,7 +1910,7 @@ jobs:
           architecture: "x64"
 
       - name: Install tox
-        run: pip install tox-uv
+        run: pip install --require-hashes -r .github/requirements/tox.txt
 
       - name: Run tests
         run: tox -e py310-test-exporter-richconsole -- -ra
@@ -1942,7 +1942,7 @@ jobs:
           architecture: "x64"
 
       - name: Install tox
-        run: pip install tox-uv
+        run: pip install --require-hashes -r .github/requirements/tox.txt
 
       - name: Run tests
         run: tox -e py310-test-exporter-prometheus-remote-write -- -ra
@@ -1974,7 +1974,7 @@ jobs:
           architecture: "x64"
 
       - name: Install tox
-        run: pip install tox-uv
+        run: pip install --require-hashes -r .github/requirements/tox.txt
 
       - name: Run tests
         run: tox -e py310-test-instrumentation-mysql-0 -- -ra
@@ -2006,7 +2006,7 @@ jobs:
           architecture: "x64"
 
       - name: Install tox
-        run: pip install tox-uv
+        run: pip install --require-hashes -r .github/requirements/tox.txt
 
       - name: Run tests
         run: tox -e py310-test-instrumentation-mysql-1 -- -ra
@@ -2038,7 +2038,7 @@ jobs:
           architecture: "x64"
 
       - name: Install tox
-        run: pip install tox-uv
+        run: pip install --require-hashes -r .github/requirements/tox.txt
 
       - name: Run tests
         run: tox -e py310-test-instrumentation-mysql-2 -- -ra
@@ -2070,7 +2070,7 @@ jobs:
           architecture: "x64"
 
       - name: Install tox
-        run: pip install tox-uv
+        run: pip install --require-hashes -r .github/requirements/tox.txt
 
       - name: Run tests
         run: tox -e py310-test-instrumentation-mysqlclient -- -ra
@@ -2102,7 +2102,7 @@ jobs:
           architecture: "x64"
 
       - name: Install tox
-        run: pip install tox-uv
+        run: pip install --require-hashes -r .github/requirements/tox.txt
 
       - name: Run tests
         run: tox -e py310-test-instrumentation-psycopg2 -- -ra
@@ -2134,7 +2134,7 @@ jobs:
           architecture: "x64"
 
       - name: Install tox
-        run: pip install tox-uv
+        run: pip install --require-hashes -r .github/requirements/tox.txt
 
       - name: Run tests
         run: tox -e py310-test-instrumentation-psycopg2-binary -- -ra
@@ -2166,7 +2166,7 @@ jobs:
           architecture: "x64"
 
       - name: Install tox
-        run: pip install tox-uv
+        run: pip install --require-hashes -r .github/requirements/tox.txt
 
       - name: Run tests
         run: tox -e py310-test-instrumentation-psycopg -- -ra
@@ -2198,7 +2198,7 @@ jobs:
           architecture: "x64"
 
       - name: Install tox
-        run: pip install tox-uv
+        run: pip install --require-hashes -r .github/requirements/tox.txt
 
       - name: Run tests
         run: tox -e py310-test-instrumentation-pymemcache-0 -- -ra
@@ -2230,7 +2230,7 @@ jobs:
           architecture: "x64"
 
       - name: Install tox
-        run: pip install tox-uv
+        run: pip install --require-hashes -r .github/requirements/tox.txt
 
       - name: Run tests
         run: tox -e py310-test-instrumentation-pymemcache-1 -- -ra
@@ -2262,7 +2262,7 @@ jobs:
           architecture: "x64"
 
       - name: Install tox
-        run: pip install tox-uv
+        run: pip install --require-hashes -r .github/requirements/tox.txt
 
       - name: Run tests
         run: tox -e py310-test-instrumentation-pymemcache-2 -- -ra
@@ -2294,7 +2294,7 @@ jobs:
           architecture: "x64"
 
       - name: Install tox
-        run: pip install tox-uv
+        run: pip install --require-hashes -r .github/requirements/tox.txt
 
       - name: Run tests
         run: tox -e py310-test-instrumentation-pymemcache-3 -- -ra
@@ -2326,7 +2326,7 @@ jobs:
           architecture: "x64"
 
       - name: Install tox
-        run: pip install tox-uv
+        run: pip install --require-hashes -r .github/requirements/tox.txt
 
       - name: Run tests
         run: tox -e py310-test-instrumentation-pymemcache-4 -- -ra
@@ -2358,7 +2358,7 @@ jobs:
           architecture: "x64"
 
       - name: Install tox
-        run: pip install tox-uv
+        run: pip install --require-hashes -r .github/requirements/tox.txt
 
       - name: Run tests
         run: tox -e py310-test-instrumentation-pymongo -- -ra
@@ -2390,7 +2390,7 @@ jobs:
           architecture: "x64"
 
       - name: Install tox
-        run: pip install tox-uv
+        run: pip install --require-hashes -r .github/requirements/tox.txt
 
       - name: Run tests
         run: tox -e py310-test-instrumentation-pymysql -- -ra
@@ -2422,7 +2422,7 @@ jobs:
           architecture: "x64"
 
       - name: Install tox
-        run: pip install tox-uv
+        run: pip install --require-hashes -r .github/requirements/tox.txt
 
       - name: Run tests
         run: tox -e py310-test-instrumentation-pymssql -- -ra
@@ -2454,7 +2454,7 @@ jobs:
           architecture: "x64"
 
       - name: Install tox
-        run: pip install tox-uv
+        run: pip install --require-hashes -r .github/requirements/tox.txt
 
       - name: Run tests
         run: tox -e py310-test-instrumentation-pyramid -- -ra
@@ -2486,7 +2486,7 @@ jobs:
           architecture: "x64"
 
       - name: Install tox
-        run: pip install tox-uv
+        run: pip install --require-hashes -r .github/requirements/tox.txt
 
       - name: Run tests
         run: tox -e py310-test-instrumentation-asgi -- -ra
@@ -2518,7 +2518,7 @@ jobs:
           architecture: "x64"
 
       - name: Install tox
-        run: pip install tox-uv
+        run: pip install --require-hashes -r .github/requirements/tox.txt
 
       - name: Run tests
         run: tox -e py310-test-instrumentation-asyncpg-wrapt1 -- -ra
@@ -2550,7 +2550,7 @@ jobs:
           architecture: "x64"
 
       - name: Install tox
-        run: pip install tox-uv
+        run: pip install --require-hashes -r .github/requirements/tox.txt
 
       - name: Run tests
         run: tox -e py310-test-instrumentation-asyncpg-wrapt2 -- -ra
@@ -2582,7 +2582,7 @@ jobs:
           architecture: "x64"
 
       - name: Install tox
-        run: pip install tox-uv
+        run: pip install --require-hashes -r .github/requirements/tox.txt
 
       - name: Run tests
         run: tox -e py310-test-instrumentation-sqlite3 -- -ra
@@ -2614,7 +2614,7 @@ jobs:
           architecture: "x64"
 
       - name: Install tox
-        run: pip install tox-uv
+        run: pip install --require-hashes -r .github/requirements/tox.txt
 
       - name: Run tests
         run: tox -e py310-test-instrumentation-wsgi -- -ra
@@ -2646,7 +2646,7 @@ jobs:
           architecture: "x64"
 
       - name: Install tox
-        run: pip install tox-uv
+        run: pip install --require-hashes -r .github/requirements/tox.txt
 
       - name: Run tests
         run: tox -e py310-test-instrumentation-grpc-0-wrapt1 -- -ra
@@ -2678,7 +2678,7 @@ jobs:
           architecture: "x64"
 
       - name: Install tox
-        run: pip install tox-uv
+        run: pip install --require-hashes -r .github/requirements/tox.txt
 
       - name: Run tests
         run: tox -e py310-test-instrumentation-grpc-0-wrapt2 -- -ra
@@ -2710,7 +2710,7 @@ jobs:
           architecture: "x64"
 
       - name: Install tox
-        run: pip install tox-uv
+        run: pip install --require-hashes -r .github/requirements/tox.txt
 
       - name: Run tests
         run: tox -e py310-test-instrumentation-grpc-1-wrapt1 -- -ra
@@ -2742,7 +2742,7 @@ jobs:
           architecture: "x64"
 
       - name: Install tox
-        run: pip install tox-uv
+        run: pip install --require-hashes -r .github/requirements/tox.txt
 
       - name: Run tests
         run: tox -e py310-test-instrumentation-grpc-1-wrapt2 -- -ra
@@ -2774,7 +2774,7 @@ jobs:
           architecture: "x64"
 
       - name: Install tox
-        run: pip install tox-uv
+        run: pip install --require-hashes -r .github/requirements/tox.txt
 
       - name: Run tests
         run: tox -e py310-test-instrumentation-sqlalchemy-oldest -- -ra
@@ -2806,7 +2806,7 @@ jobs:
           architecture: "x64"
 
       - name: Install tox
-        run: pip install tox-uv
+        run: pip install --require-hashes -r .github/requirements/tox.txt
 
       - name: Run tests
         run: tox -e py310-test-instrumentation-sqlalchemy-latest -- -ra
@@ -2838,7 +2838,7 @@ jobs:
           architecture: "x64"
 
       - name: Install tox
-        run: pip install tox-uv
+        run: pip install --require-hashes -r .github/requirements/tox.txt
 
       - name: Run tests
         run: tox -e py310-test-instrumentation-redis -- -ra
@@ -2870,7 +2870,7 @@ jobs:
           architecture: "x64"
 
       - name: Install tox
-        run: pip install tox-uv
+        run: pip install --require-hashes -r .github/requirements/tox.txt
 
       - name: Run tests
         run: tox -e py310-test-instrumentation-remoulade -- -ra
@@ -2902,7 +2902,7 @@ jobs:
           architecture: "x64"
 
       - name: Install tox
-        run: pip install tox-uv
+        run: pip install --require-hashes -r .github/requirements/tox.txt
 
       - name: Run tests
         run: tox -e py310-test-instrumentation-celery -- -ra
@@ -2934,7 +2934,7 @@ jobs:
           architecture: "x64"
 
       - name: Install tox
-        run: pip install tox-uv
+        run: pip install --require-hashes -r .github/requirements/tox.txt
 
       - name: Run tests
         run: tox -e py310-test-instrumentation-system-metrics -- -ra
@@ -2966,7 +2966,7 @@ jobs:
           architecture: "x64"
 
       - name: Install tox
-        run: pip install tox-uv
+        run: pip install --require-hashes -r .github/requirements/tox.txt
 
       - name: Run tests
         run: tox -e py310-test-instrumentation-threading -- -ra
@@ -2998,7 +2998,7 @@ jobs:
           architecture: "x64"
 
       - name: Install tox
-        run: pip install tox-uv
+        run: pip install --require-hashes -r .github/requirements/tox.txt
 
       - name: Run tests
         run: tox -e py310-test-instrumentation-tornado -- -ra
@@ -3030,7 +3030,7 @@ jobs:
           architecture: "x64"
 
       - name: Install tox
-        run: pip install tox-uv
+        run: pip install --require-hashes -r .github/requirements/tox.txt
 
       - name: Run tests
         run: tox -e py310-test-instrumentation-tortoiseorm -- -ra
@@ -3062,7 +3062,7 @@ jobs:
           architecture: "x64"
 
       - name: Install tox
-        run: pip install tox-uv
+        run: pip install --require-hashes -r .github/requirements/tox.txt
 
       - name: Run tests
         run: tox -e py310-test-instrumentation-httpx-0-wrapt1 -- -ra
@@ -3094,7 +3094,7 @@ jobs:
           architecture: "x64"
 
       - name: Install tox
-        run: pip install tox-uv
+        run: pip install --require-hashes -r .github/requirements/tox.txt
 
       - name: Run tests
         run: tox -e py310-test-instrumentation-httpx-0-wrapt2 -- -ra
@@ -3126,7 +3126,7 @@ jobs:
           architecture: "x64"
 
       - name: Install tox
-        run: pip install tox-uv
+        run: pip install --require-hashes -r .github/requirements/tox.txt
 
       - name: Run tests
         run: tox -e py310-test-instrumentation-httpx-1-wrapt1 -- -ra
@@ -3158,7 +3158,7 @@ jobs:
           architecture: "x64"
 
       - name: Install tox
-        run: pip install tox-uv
+        run: pip install --require-hashes -r .github/requirements/tox.txt
 
       - name: Run tests
         run: tox -e py310-test-instrumentation-httpx-1-wrapt2 -- -ra
@@ -3190,7 +3190,7 @@ jobs:
           architecture: "x64"
 
       - name: Install tox
-        run: pip install tox-uv
+        run: pip install --require-hashes -r .github/requirements/tox.txt
 
       - name: Run tests
         run: tox -e py310-test-instrumentation-httpx-2-wrapt1 -- -ra
@@ -3222,7 +3222,7 @@ jobs:
           architecture: "x64"
 
       - name: Install tox
-        run: pip install tox-uv
+        run: pip install --require-hashes -r .github/requirements/tox.txt
 
       - name: Run tests
         run: tox -e py310-test-instrumentation-httpx-2-wrapt2 -- -ra
@@ -3254,7 +3254,7 @@ jobs:
           architecture: "x64"
 
       - name: Install tox
-        run: pip install tox-uv
+        run: pip install --require-hashes -r .github/requirements/tox.txt
 
       - name: Run tests
         run: tox -e py310-test-instrumentation-httpx-3-wrapt1 -- -ra
@@ -3286,7 +3286,7 @@ jobs:
           architecture: "x64"
 
       - name: Install tox
-        run: pip install tox-uv
+        run: pip install --require-hashes -r .github/requirements/tox.txt
 
       - name: Run tests
         run: tox -e py310-test-instrumentation-httpx-3-wrapt2 -- -ra
@@ -3318,7 +3318,7 @@ jobs:
           architecture: "x64"
 
       - name: Install tox
-        run: pip install tox-uv
+        run: pip install --require-hashes -r .github/requirements/tox.txt
 
       - name: Run tests
         run: tox -e py310-test-util-http -- -ra
@@ -3350,7 +3350,7 @@ jobs:
           architecture: "x64"
 
       - name: Install tox
-        run: pip install tox-uv
+        run: pip install --require-hashes -r .github/requirements/tox.txt
 
       - name: Run tests
         run: tox -e py310-test-exporter-credential-provider-gcp -- -ra
@@ -3382,7 +3382,7 @@ jobs:
           architecture: "x64"
 
       - name: Install tox
-        run: pip install tox-uv
+        run: pip install --require-hashes -r .github/requirements/tox.txt
 
       - name: Run tests
         run: tox -e py310-test-util-genai -- -ra
@@ -3414,7 +3414,7 @@ jobs:
           architecture: "x64"
 
       - name: Install tox
-        run: pip install tox-uv
+        run: pip install --require-hashes -r .github/requirements/tox.txt
 
       - name: Run tests
         run: tox -e py310-test-propagator-aws-xray-0 -- -ra
@@ -3446,7 +3446,7 @@ jobs:
           architecture: "x64"
 
       - name: Install tox
-        run: pip install tox-uv
+        run: pip install --require-hashes -r .github/requirements/tox.txt
 
       - name: Run tests
         run: tox -e py310-test-propagator-aws-xray-1 -- -ra
@@ -3478,7 +3478,7 @@ jobs:
           architecture: "x64"
 
       - name: Install tox
-        run: pip install tox-uv
+        run: pip install --require-hashes -r .github/requirements/tox.txt
 
       - name: Run tests
         run: tox -e py310-test-propagator-ot-trace -- -ra
@@ -3510,7 +3510,7 @@ jobs:
           architecture: "x64"
 
       - name: Install tox
-        run: pip install tox-uv
+        run: pip install --require-hashes -r .github/requirements/tox.txt
 
       - name: Run tests
         run: tox -e py310-test-instrumentation-sio-pika-0-wrapt1 -- -ra
@@ -3542,7 +3542,7 @@ jobs:
           architecture: "x64"
 
       - name: Install tox
-        run: pip install tox-uv
+        run: pip install --require-hashes -r .github/requirements/tox.txt
 
       - name: Run tests
         run: tox -e py310-test-instrumentation-sio-pika-0-wrapt2 -- -ra
@@ -3574,7 +3574,7 @@ jobs:
           architecture: "x64"
 
       - name: Install tox
-        run: pip install tox-uv
+        run: pip install --require-hashes -r .github/requirements/tox.txt
 
       - name: Run tests
         run: tox -e py310-test-instrumentation-sio-pika-1-wrapt1 -- -ra
@@ -3606,7 +3606,7 @@ jobs:
           architecture: "x64"
 
       - name: Install tox
-        run: pip install tox-uv
+        run: pip install --require-hashes -r .github/requirements/tox.txt
 
       - name: Run tests
         run: tox -e py310-test-instrumentation-sio-pika-1-wrapt2 -- -ra
@@ -3638,7 +3638,7 @@ jobs:
           architecture: "x64"
 
       - name: Install tox
-        run: pip install tox-uv
+        run: pip install --require-hashes -r .github/requirements/tox.txt
 
       - name: Run tests
         run: tox -e py310-test-instrumentation-aio-pika-oldest -- -ra
@@ -3670,7 +3670,7 @@ jobs:
           architecture: "x64"
 
       - name: Install tox
-        run: pip install tox-uv
+        run: pip install --require-hashes -r .github/requirements/tox.txt
 
       - name: Run tests
         run: tox -e py310-test-instrumentation-aio-pika-latest -- -ra
@@ -3702,7 +3702,7 @@ jobs:
           architecture: "x64"
 
       - name: Install tox
-        run: pip install tox-uv
+        run: pip install --require-hashes -r .github/requirements/tox.txt
 
       - name: Run tests
         run: tox -e py310-test-instrumentation-aiokafka -- -ra
@@ -3734,7 +3734,7 @@ jobs:
           architecture: "x64"
 
       - name: Install tox
-        run: pip install tox-uv
+        run: pip install --require-hashes -r .github/requirements/tox.txt
 
       - name: Run tests
         run: tox -e py310-test-instrumentation-kafka-python-oldest -- -ra
@@ -3766,7 +3766,7 @@ jobs:
           architecture: "x64"
 
       - name: Install tox
-        run: pip install tox-uv
+        run: pip install --require-hashes -r .github/requirements/tox.txt
 
       - name: Run tests
         run: tox -e py310-test-instrumentation-kafka-python-latest -- -ra
@@ -3798,7 +3798,7 @@ jobs:
           architecture: "x64"
 
       - name: Install tox
-        run: pip install tox-uv
+        run: pip install --require-hashes -r .github/requirements/tox.txt
 
       - name: Run tests
         run: tox -e py310-test-instrumentation-confluent-kafka -- -ra
@@ -3830,7 +3830,7 @@ jobs:
           architecture: "x64"
 
       - name: Install tox
-        run: pip install tox-uv
+        run: pip install --require-hashes -r .github/requirements/tox.txt
 
       - name: Run tests
         run: tox -e py310-test-instrumentation-asyncio -- -ra
@@ -3862,7 +3862,7 @@ jobs:
           architecture: "x64"
 
       - name: Install tox
-        run: pip install tox-uv
+        run: pip install --require-hashes -r .github/requirements/tox.txt
 
       - name: Run tests
         run: tox -e py310-test-instrumentation-cassandra-driver -- -ra
@@ -3894,7 +3894,7 @@ jobs:
           architecture: "x64"
 
       - name: Install tox
-        run: pip install tox-uv
+        run: pip install --require-hashes -r .github/requirements/tox.txt
 
       - name: Run tests
         run: tox -e py310-test-instrumentation-cassandra-scylla -- -ra
@@ -3926,7 +3926,7 @@ jobs:
           architecture: "x64"
 
       - name: Install tox
-        run: pip install tox-uv
+        run: pip install --require-hashes -r .github/requirements/tox.txt
 
       - name: Run tests
         run: tox -e py310-test-processor-baggage -- -ra
@@ -3958,7 +3958,7 @@ jobs:
           architecture: "x64"
 
       - name: Install tox
-        run: pip install tox-uv
+        run: pip install --require-hashes -r .github/requirements/tox.txt
 
       - name: Run tests
         run: tox -e py310-test-opamp-client-latest -- -ra
@@ -3990,7 +3990,7 @@ jobs:
           architecture: "x64"
 
       - name: Install tox
-        run: pip install tox-uv
+        run: pip install --require-hashes -r .github/requirements/tox.txt
 
       - name: Run tests
         run: tox -e py310-test-opamp-client-lowest -- -ra

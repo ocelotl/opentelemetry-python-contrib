@@ -40,7 +40,7 @@ jobs:
           python-version: "3.11"
 
       - name: Install tox
-        run: pip install tox-uv
+        run: pip install --require-hashes -r .github/requirements/tox.txt
 
       - name: Run tests
         run: tox -e spellcheck
@@ -61,7 +61,7 @@ jobs:
           python-version: "3.11"
 
       - name: Install tox
-        run: pip install tox-uv
+        run: pip install --require-hashes -r .github/requirements/tox.txt
 
       - name: Install Microsoft SQL ODBC driver
         run: sudo apt update -y && ACCEPT_EULA=Y sudo apt install -y msodbcsql18 unixodbc-dev unixodbc
@@ -89,7 +89,7 @@ jobs:
           python-version: "3.11"
 
       - name: Install tox
-        run: pip install tox-uv
+        run: pip install --require-hashes -r .github/requirements/tox.txt
 
       - name: Run tests
         run: tox -e docs
@@ -110,7 +110,7 @@ jobs:
           python-version: "3.11"
 
       - name: Install tox
-        run: pip install tox-uv
+        run: pip install --require-hashes -r .github/requirements/tox.txt
 
       - name: Run tests
         run: tox -e generate
@@ -137,7 +137,7 @@ jobs:
           python-version: "3.11"
 
       - name: Install tox
-        run: pip install tox-uv
+        run: pip install --require-hashes -r .github/requirements/tox.txt
 
       - name: Run tests
         run: tox -e generate-workflows
@@ -161,7 +161,7 @@ jobs:
           python-version: "3.11"
 
       - name: Install tox
-        run: pip install tox-uv
+        run: pip install --require-hashes -r .github/requirements/tox.txt
 
       - name: Run tests
         run: tox -e shellcheck
@@ -182,7 +182,7 @@ jobs:
           python-version: "3.11"
 
       - name: Install tox
-        run: pip install tox-uv
+        run: pip install --require-hashes -r .github/requirements/tox.txt
 
       - name: Run tests
         run: tox -e precommit
@@ -203,7 +203,7 @@ jobs:
           python-version: "3.11"
 
       - name: Install tox
-        run: pip install tox-uv
+        run: pip install --require-hashes -r .github/requirements/tox.txt
 
       - name: Run tests
         run: tox -e typecheck

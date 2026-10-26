@@ -69,7 +69,7 @@ jobs:
           python-version: "3.11"
 
       - name: Install tox
-        run: pip install tox-uv
+        run: pip install --require-hashes -r .github/requirements/tox.txt
 
       {%- if job_data == "docker-tests" %}
 
