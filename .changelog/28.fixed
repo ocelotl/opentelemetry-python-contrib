@@ -1,0 +1,1 @@
+`opentelemetry-instrumentation-boto3sqs`: release the received-message span state on uninstrument
