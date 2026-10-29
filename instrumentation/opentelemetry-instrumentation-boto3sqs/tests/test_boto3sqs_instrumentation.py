@@ -424,3 +424,28 @@ class TestBoto3SQSInstrumentation(TestBase):
         with self._mocked_endpoint({"Successful": [], "Failed": []}):
             with self.assertRaises(ParamValidationError):
                 self._client.delete_message_batch(QueueUrl=self._queue_url)
+
+    def test_delete_message_batch_ends_every_entry(self) -> None:
+        receipts = ["01", "02", "03"]
+        mock_response = {
+            "Messages": [
+                self._make_message(str(index), f"hello {index}", receipt) for index, receipt in enumerate(receipts)
+            ]
+        }
+
+        with self._mocked_endpoint(mock_response):
+            self._client.receive_message(QueueUrl=self._queue_url)
+
+        self.assertEqual(set(receipts), set(Boto3SQSInstrumentor.received_messages_spans))
+        self.memory_exporter.clear()
+
+        with self._mocked_endpoint({"Successful": [], "Failed": []}):
+            self._client.delete_message_batch(
+                QueueUrl=self._queue_url,
+                Entries=[{"Id": receipt, "ReceiptHandle": receipt} for receipt in receipts],
+            )
+
+        spans = self.get_finished_spans()
+        self.assertEqual(len(receipts), len(spans))
+        self.assertEqual({f"{self._queue_name} process"}, {span.name for span in spans})
+        self.assertEqual({}, Boto3SQSInstrumentor.received_messages_spans)
