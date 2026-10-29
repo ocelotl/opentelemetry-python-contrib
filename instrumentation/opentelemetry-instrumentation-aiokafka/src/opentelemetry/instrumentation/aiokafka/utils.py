@@ -435,22 +435,23 @@ async def _create_consumer_span(
     ) as span:
         new_context = trace.set_span_in_context(span, extracted_context)
         token = context.attach(new_context)
-        _enrich_getone_span(
-            span,
-            bootstrap_servers=bootstrap_servers,
-            client_id=client_id,
-            consumer_group=consumer_group,
-            topic=record.topic,
-            partition=record.partition,
-            key=_deserialize_key(record.key),
-            offset=record.offset,
-        )
         try:
-            if async_consume_hook is not None:
-                await async_consume_hook(span, record, args, kwargs)
-        except Exception as hook_exception:  # pylint: disable=W0703
-            _LOG.exception(hook_exception)
-        if token:
+            _enrich_getone_span(
+                span,
+                bootstrap_servers=bootstrap_servers,
+                client_id=client_id,
+                consumer_group=consumer_group,
+                topic=record.topic,
+                partition=record.partition,
+                key=_deserialize_key(record.key),
+                offset=record.offset,
+            )
+            try:
+                if async_consume_hook is not None:
+                    await async_consume_hook(span, record, args, kwargs)
+            except Exception as hook_exception:  # pylint: disable=W0703
+                _LOG.exception(hook_exception)
+        finally:
             context.detach(token)
 
     return span

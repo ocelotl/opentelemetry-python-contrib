@@ -7,6 +7,7 @@ from unittest import IsolatedAsyncioTestCase, mock
 
 import aiokafka
 
+from opentelemetry.context import get_current
 from opentelemetry.instrumentation.aiokafka.utils import (
     AIOKafkaContextGetter,
     AIOKafkaContextSetter,
@@ -289,6 +290,35 @@ class TestUtils(IsolatedAsyncioTestCase):
         )
         consume_hook.assert_awaited_once_with(span, record, self.args, self.kwargs)
         detach.assert_called_once_with(attach.return_value)
+
+    @mock.patch("opentelemetry.instrumentation.aiokafka.utils._enrich_getone_span")
+    async def test_create_consumer_span_detaches_context_when_enrich_span_raises(
+        self,
+        enrich_span: mock.MagicMock,
+    ) -> None:
+        """The attached context is restored when span enrichment raises.
+
+        ``_enrich_getone_span`` reads attributes off the record, so a malformed
+        record can make it raise. The context attached just before it must not
+        stay attached to the task when that happens.
+        """
+        enrich_span.side_effect = ValueError("malformed record")
+        context_before = get_current()
+
+        with self.assertRaises(ValueError):
+            await _create_consumer_span(
+                mock.MagicMock(),
+                mock.AsyncMock(),
+                mock.MagicMock(),
+                context_before,
+                mock.MagicMock(),
+                mock.MagicMock(),
+                mock.MagicMock(),
+                self.args,
+                self.kwargs,
+            )
+
+        self.assertIs(get_current(), context_before)
 
     async def test_kafka_properties_extractor(self):
         aiokafka_instance_mock = mock.Mock()
