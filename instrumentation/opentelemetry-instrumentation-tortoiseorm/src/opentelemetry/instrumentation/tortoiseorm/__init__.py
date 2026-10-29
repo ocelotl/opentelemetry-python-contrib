@@ -36,9 +36,11 @@ import wrapt
 
 from opentelemetry import trace
 from opentelemetry.instrumentation._semconv import (
+    _db_client_operation_duration_attributes,
     _get_schema_url_for_signal_types,
     _OpenTelemetrySemanticConventionStability,
     _OpenTelemetryStabilitySignalType,
+    _record_db_client_operation_duration,
     _set_db_name,
     _set_db_statement,
     _set_db_system,
@@ -53,9 +55,15 @@ from opentelemetry.instrumentation.utils import (
     is_instrumentation_enabled,
     unwrap,
 )
+from opentelemetry.metrics import get_meter
 from opentelemetry.semconv._incubating.attributes.db_attributes import (
+    DbSystemNameValues,
     DbSystemValues,
 )
+from opentelemetry.semconv._incubating.metrics.db_metrics import (
+    create_db_client_operation_duration,
+)
+from opentelemetry.semconv.schemas import Schemas
 from opentelemetry.trace import SpanKind
 from opentelemetry.trace.status import Status, StatusCode
 
@@ -81,6 +89,12 @@ except ModuleNotFoundError:
     TORTOISE_SQLITE_SUPPORT = False
 
 import tortoise.contrib.pydantic.base
+
+_DB_SYSTEM_NAME_BY_DIALECT = {
+    "sqlite": DbSystemNameValues.SQLITE.value,
+    "postgres": DbSystemNameValues.POSTGRESQL.value,
+    "mysql": DbSystemNameValues.MYSQL.value,
+}
 
 
 class TortoiseORMInstrumentor(BaseInstrumentor):
@@ -113,6 +127,13 @@ class TortoiseORMInstrumentor(BaseInstrumentor):
             tracer_provider,
             schema_url=_get_schema_url_for_signal_types([_OpenTelemetryStabilitySignalType.DATABASE]),
         )
+        meter = get_meter(
+            __name__,
+            __version__,
+            kwargs.get("meter_provider"),
+            schema_url=Schemas.V1_33_0.value,
+        )
+        self._duration_histogram = create_db_client_operation_duration(meter)
         self.capture_parameters = kwargs.get("capture_parameters", False)
         if TORTOISE_SQLITE_SUPPORT:
             funcs = [
@@ -280,6 +301,15 @@ class TortoiseORMInstrumentor(BaseInstrumentor):
                 or getattr(getattr(instance, "capabilities", None), "dialect", "")
             )
 
+        dialect = getattr(getattr(instance, "capabilities", None), "dialect", None)
+        metric_attributes = _db_client_operation_duration_attributes(
+            _DB_SYSTEM_NAME_BY_DIALECT.get(dialect, DbSystemNameValues.OTHER_SQL.value),
+            operation_name=name,
+            namespace=getattr(instance, "database", None) or getattr(instance, "filename", None),
+            server_address=getattr(instance, "host", None),
+            server_port=getattr(instance, "port", None),
+        )
+
         with self._tracer.start_as_current_span(name, kind=SpanKind.CLIENT) as span:
             if span.is_recording():
                 span_attributes = self._hydrate_span_from_args(
@@ -290,7 +320,8 @@ class TortoiseORMInstrumentor(BaseInstrumentor):
                 span.set_attributes(span_attributes)
 
             try:
-                result = await func(*args, **kwargs)
+                with _record_db_client_operation_duration(self._duration_histogram, metric_attributes):
+                    result = await func(*args, **kwargs)
             except Exception as exc:  # pylint: disable=W0703
                 exception = exc
                 raise
