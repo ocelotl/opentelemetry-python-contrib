@@ -296,11 +296,13 @@ class TestUtils(IsolatedAsyncioTestCase):
         self,
         enrich_span: mock.MagicMock,
     ) -> None:
-        """The attached context is restored when span enrichment raises.
+        """``_create_consumer_span`` detaches what it attached, even when span
+        enrichment raises.
 
-        ``_enrich_getone_span`` reads attributes off the record, so a malformed
-        record can make it raise. The context attached just before it must not
-        stay attached to the task when that happens.
+        The tracer is a mock, so nothing else restores the context variable
+        and the assertion holds only if the function detaches its own token.
+        A real tracer would hide a missing detach, because the detach inside
+        ``start_as_current_span`` resets the context variable past it.
         """
         enrich_span.side_effect = ValueError("malformed record")
         context_before = get_current()

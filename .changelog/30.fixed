@@ -1,1 +1,1 @@
-`opentelemetry-instrumentation-flask`, `opentelemetry-instrumentation-kafka-python`, `opentelemetry-instrumentation-aiokafka`: detach every context that is attached while handling a request or a consumed record, so a failure in between does not leave it attached to the worker thread
+`opentelemetry-instrumentation-flask`, `opentelemetry-instrumentation-kafka-python`, `opentelemetry-instrumentation-aiokafka`: detach every context these instrumentations attach

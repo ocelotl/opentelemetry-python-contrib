@@ -57,9 +57,10 @@ class TestSQLCommenter(InstrumentationTest, WsgiTestBase):
     def test_sqlcommenter_context_is_detached(self):
         """The context carrying the commenter values is detached again.
 
-        The token returned by ``context.attach`` used to be discarded, which
-        left the values of a finished request attached to the worker thread on
-        every teardown path that does not reach the detach of the span token.
+        The token returned by ``context.attach`` used to be discarded, so the
+        commenter context was undone only as a side effect of detaching the
+        older span token, which resets the context variable past it. This
+        asserts that the commenter token itself reaches ``context.detach``.
         """
         self.app = flask.Flask(__name__)
         self.app.route("/sqlcommenter")(self._sqlcommenter_endpoint)
