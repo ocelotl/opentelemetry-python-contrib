@@ -6,6 +6,7 @@ from unittest import TestCase, mock
 
 from kafka.producer.future import FutureProduceResult, FutureRecordMetadata
 
+from opentelemetry.instrumentation._semconv import _StabilityMode
 from opentelemetry.instrumentation.kafka.utils import (
     KafkaPropertiesExtractor,
     _create_consumer_span,
@@ -16,6 +17,7 @@ from opentelemetry.instrumentation.kafka.utils import (
     _wrap_next,
     _wrap_send,
 )
+from opentelemetry.semconv._incubating.attributes import messaging_attributes
 from opentelemetry.semconv.trace import SpanAttributes
 from opentelemetry.test.test_base import TestBase
 from opentelemetry.trace import SpanKind, StatusCode
@@ -87,7 +89,7 @@ class TestUtils(TestCase):
         kafka_producer = mock.MagicMock()
         expected_span_name = _get_span_name("send", self.topic_name)
 
-        wrapped_send = _wrap_send(tracer, produce_hook)
+        wrapped_send = _wrap_send(tracer, produce_hook, _StabilityMode.DEFAULT)
         retval = wrapped_send(original_send_callback, kafka_producer, self.args, self.kwargs)
 
         extract_bootstrap_servers.assert_called_once_with(kafka_producer)
@@ -102,6 +104,8 @@ class TestUtils(TestCase):
             extract_bootstrap_servers.return_value,
             self.topic_name,
             extract_send_partition.return_value,
+            messaging_attributes.MessagingOperationTypeValues.SEND,
+            _StabilityMode.DEFAULT,
         )
 
         set_span_in_context.assert_called_once_with(span)
@@ -127,7 +131,7 @@ class TestUtils(TestCase):
         original_next_callback = mock.MagicMock()
         kafka_consumer = mock.MagicMock()
 
-        wrapped_next = _wrap_next(tracer, consume_hook)
+        wrapped_next = _wrap_next(tracer, consume_hook, _StabilityMode.DEFAULT)
         record = wrapped_next(original_next_callback, kafka_consumer, self.args, self.kwargs)
 
         extract_bootstrap_servers.assert_called_once_with(kafka_consumer)
@@ -147,6 +151,7 @@ class TestUtils(TestCase):
             bootstrap_servers,
             self.args,
             self.kwargs,
+            _StabilityMode.DEFAULT,
         )
 
     @mock.patch("opentelemetry.trace.set_span_in_context")
@@ -174,6 +179,7 @@ class TestUtils(TestCase):
             bootstrap_servers,
             self.args,
             self.kwargs,
+            _StabilityMode.DEFAULT,
         )
 
         expected_span_name = _get_span_name("receive", record.topic)
@@ -187,7 +193,14 @@ class TestUtils(TestCase):
         set_span_in_context.assert_called_once_with(span, extracted_context)
         attach.assert_called_once_with(set_span_in_context.return_value)
 
-        enrich_span.assert_called_once_with(span, bootstrap_servers, record.topic, record.partition)
+        enrich_span.assert_called_once_with(
+            span,
+            bootstrap_servers,
+            record.topic,
+            record.partition,
+            messaging_attributes.MessagingOperationTypeValues.RECEIVE,
+            _StabilityMode.DEFAULT,
+        )
         consume_hook.assert_called_once_with(span, record, self.args, self.kwargs)
         detach.assert_called_once_with(attach.return_value)
 
@@ -239,7 +252,14 @@ class TestUtils(TestCase):
         span = mock.MagicMock()
         span.is_recording.return_value = True
 
-        _enrich_span(span, ["localhost:9092"], self.topic_name, 2)
+        _enrich_span(
+            span,
+            ["localhost:9092"],
+            self.topic_name,
+            2,
+            messaging_attributes.MessagingOperationTypeValues.SEND,
+            _StabilityMode.DEFAULT,
+        )
 
         span.set_attribute.assert_any_call(SpanAttributes.MESSAGING_KAFKA_PARTITION, 2)
 
@@ -247,10 +267,36 @@ class TestUtils(TestCase):
         span = mock.MagicMock()
         span.is_recording.return_value = True
 
-        _enrich_span(span, ["localhost:9092"], self.topic_name, None)
+        _enrich_span(
+            span,
+            ["localhost:9092"],
+            self.topic_name,
+            None,
+            messaging_attributes.MessagingOperationTypeValues.SEND,
+            _StabilityMode.DEFAULT,
+        )
 
         recorded_attributes = {call.args[0] for call in span.set_attribute.call_args_list}
         self.assertNotIn(SpanAttributes.MESSAGING_KAFKA_PARTITION, recorded_attributes)
+
+    def test_enrich_span_omits_partition_when_none_in_messaging_mode(self):
+        span = mock.MagicMock()
+        span.is_recording.return_value = True
+
+        _enrich_span(
+            span,
+            ["localhost:9092"],
+            self.topic_name,
+            None,
+            messaging_attributes.MessagingOperationTypeValues.SEND,
+            _StabilityMode.MESSAGING,
+        )
+
+        recorded_attributes = {call.args[0] for call in span.set_attribute.call_args_list}
+        self.assertNotIn(
+            messaging_attributes.MESSAGING_DESTINATION_PARTITION_ID,
+            recorded_attributes,
+        )
 
 
 @mock.patch(
@@ -276,7 +322,7 @@ class TestWrapSendSpanLifetime(TestBase):
         def failing_send(*args, **kwargs):
             raise error
 
-        wrapped_send = _wrap_send(self.tracer, None)
+        wrapped_send = _wrap_send(self.tracer, None, _StabilityMode.DEFAULT)
 
         with self.assertRaises(ConnectionError) as raised:
             wrapped_send(failing_send, self.producer, self.args, self.kwargs)
@@ -296,7 +342,7 @@ class TestWrapSendSpanLifetime(TestBase):
     def test_wrap_send_leaves_successful_send_unchanged(self, _extract_send_partition: mock.MagicMock) -> None:
         original_send = mock.MagicMock()
 
-        wrapped_send = _wrap_send(self.tracer, None)
+        wrapped_send = _wrap_send(self.tracer, None, _StabilityMode.DEFAULT)
         retval = wrapped_send(original_send, self.producer, self.args, self.kwargs)
 
         original_send.assert_called_once_with(*self.args, **self.kwargs)
