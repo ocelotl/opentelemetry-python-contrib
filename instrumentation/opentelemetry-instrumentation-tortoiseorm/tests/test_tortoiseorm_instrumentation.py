@@ -19,11 +19,16 @@ from opentelemetry.semconv._incubating.attributes.db_attributes import (
     DB_STATEMENT,
     DB_SYSTEM,
 )
+from opentelemetry.semconv._incubating.metrics.db_metrics import (
+    DB_CLIENT_OPERATION_DURATION,
+)
 from opentelemetry.semconv.attributes.db_attributes import (
     DB_NAMESPACE,
+    DB_OPERATION_NAME,
     DB_QUERY_TEXT,
     DB_SYSTEM_NAME,
 )
+from opentelemetry.semconv.attributes.error_attributes import ERROR_TYPE
 from opentelemetry.test.test_base import TestBase
 
 
@@ -256,3 +261,96 @@ class TestTortoiseORMInstrumentor(TestBase):
         self.assertIn("SELECT", span_names)
         self.assertIn(":memory:", span_names)
         self.assertNotIn("/*", span_names)
+
+
+class TestTortoiseORMOperationDuration(TestBase):
+    """Tests for the db.client.operation.duration histogram."""
+
+    def setUp(self):
+        super().setUp()
+        _OpenTelemetrySemanticConventionStability._initialized = False
+        TortoiseORMInstrumentor().instrument()
+
+    def tearDown(self):
+        super().tearDown()
+        TortoiseORMInstrumentor().uninstrument()
+        _OpenTelemetrySemanticConventionStability._initialized = False
+        if Tortoise._inited:
+            asyncio.run(Tortoise._drop_databases())
+
+    @staticmethod
+    async def _init_tortoise():
+        await Tortoise.init(
+            db_url="sqlite://:memory:",
+            modules={"models": [__name__]},
+        )
+        await Tortoise.generate_schemas()
+
+    def _duration_points(self):
+        metrics = [metric for metric in self.get_sorted_metrics() if metric.name == DB_CLIENT_OPERATION_DURATION]
+        self.assertEqual(len(metrics), 1)
+        self.assertEqual(metrics[0].unit, "s")
+        return list(metrics[0].data.data_points)
+
+    def test_duration_recorded_per_operation(self):
+        async def run():
+            await self._init_tortoise()
+            await MockModel.create(name="Test 1")
+            await MockModel.filter(name="Test 1").first()
+
+        asyncio.run(run())
+
+        points = self._duration_points()
+        by_operation = {dict(point.attributes).get(DB_OPERATION_NAME): point for point in points}
+        self.assertIn("INSERT", by_operation)
+        self.assertIn("SELECT", by_operation)
+
+        attributes = dict(by_operation["SELECT"].attributes)
+        self.assertEqual(attributes[DB_SYSTEM_NAME], "sqlite")
+        self.assertEqual(attributes[DB_NAMESPACE], ":memory:")
+        self.assertNotIn(ERROR_TYPE, attributes)
+        self.assertIs(type(attributes[DB_SYSTEM_NAME]), str)
+        self.assertIs(type(attributes[DB_NAMESPACE]), str)
+        self.assertGreaterEqual(by_operation["SELECT"].sum, 0.0)
+
+    def test_duration_recorded_in_every_semconv_mode(self):
+        for mode in ("", "database", "database/dup"):
+            with self.subTest(mode=mode), use_semconv_opt_in(mode):
+                TortoiseORMInstrumentor().uninstrument()
+                TortoiseORMInstrumentor().instrument()
+
+                async def run():
+                    await self._init_tortoise()
+                    await MockModel.create(name="Test 1")
+
+                asyncio.run(run())
+                asyncio.run(Tortoise._drop_databases())
+
+                attributes = dict(self._duration_points()[0].attributes)
+                self.assertEqual(attributes[DB_SYSTEM_NAME], "sqlite")
+
+    def test_duration_recorded_with_error_type_on_a_failed_query(self):
+        async def run():
+            await self._init_tortoise()
+            connection = Tortoise.get_connection("default")
+            await connection.execute_query("SELECT * FROM table_that_does_not_exist")
+
+        with self.assertRaises(Exception) as raised:
+            asyncio.run(run())
+
+        failed = [point for point in self._duration_points() if ERROR_TYPE in dict(point.attributes)]
+        self.assertEqual(len(failed), 1)
+        attributes = dict(failed[0].attributes)
+        self.assertEqual(attributes[ERROR_TYPE], type(raised.exception).__qualname__)
+        self.assertEqual(attributes[DB_OPERATION_NAME], "SELECT")
+        self.assertIs(type(attributes[ERROR_TYPE]), str)
+
+    def test_nothing_recorded_while_instrumentation_is_suppressed(self):
+        async def run():
+            with suppress_instrumentation():
+                await self._init_tortoise()
+                await MockModel.create(name="Test 1")
+
+        asyncio.run(run())
+
+        self.assertEqual(self.get_sorted_metrics(), [])
