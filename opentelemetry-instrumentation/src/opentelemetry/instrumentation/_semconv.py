@@ -5,13 +5,16 @@ from __future__ import annotations
 
 import os
 import threading
-from collections.abc import Container, Mapping, MutableMapping
+from collections.abc import Container, Iterator, Mapping, MutableMapping
+from contextlib import contextmanager
 from enum import Enum
+from time import perf_counter
 from urllib.parse import urlparse
 
 from packaging import version as package_version
 
 from opentelemetry.instrumentation.utils import http_status_to_status_code
+from opentelemetry.metrics import Histogram
 from opentelemetry.semconv._incubating.attributes import messaging_attributes
 from opentelemetry.semconv._incubating.attributes.db_attributes import (
     DB_NAME,
@@ -627,6 +630,62 @@ def _set_db_redis_database_index(
         if database_index is not None:
             result[DB_REDIS_DATABASE_INDEX] = int(database_index)
     # No new attribute - db.redis.database_index was removed with no replacement in semconv 1.38.0
+
+
+def _db_client_operation_duration_attributes(
+    db_system_name: str,
+    operation_name: str | None = None,
+    namespace: str | None = None,
+    server_address: str | None = None,
+    server_port: int | None = None,
+) -> dict[str, AttributeValue]:
+    """Build the attribute set of the ``db.client.operation.duration`` histogram.
+
+    The database semantic convention marks ``db.system.name`` as Required on the
+    histogram and the remaining attributes as Conditionally Required, so an
+    attribute whose value the instrumentation cannot determine is left out
+    instead of being recorded as an empty value.
+
+    The histogram carries only the stable attributes, whatever
+    ``OTEL_SEMCONV_STABILITY_OPT_IN`` is set to, because it has no experimental
+    predecessor to stay compatible with.
+    """
+    attributes: dict[str, AttributeValue] = {DB_SYSTEM_NAME: db_system_name}
+    if operation_name:
+        attributes[DB_OPERATION_NAME] = operation_name
+    if namespace:
+        attributes[DB_NAMESPACE] = namespace
+    if server_address:
+        attributes[SERVER_ADDRESS] = server_address
+    if server_port:
+        attributes[SERVER_PORT] = int(server_port)
+    return attributes
+
+
+@contextmanager
+def _record_db_client_operation_duration(
+    histogram: Histogram,
+    attributes: MutableMapping[str, AttributeValue],
+) -> Iterator[None]:
+    """Time the wrapped block and record it on a ``db.client.operation.duration`` histogram.
+
+    A block that raises adds ``error.type`` to ``attributes`` before the
+    measurement is recorded, so that the histogram and the span describing the
+    same operation carry the same value, as
+    https://github.com/open-telemetry/semantic-conventions/blob/main/docs/general/recording-errors.md
+    requires. The original exception is re-raised unmodified.
+
+    The measurement is recorded from a ``finally`` block, so a failed operation
+    is counted rather than dropped.
+    """
+    start_time = perf_counter()
+    try:
+        yield
+    except Exception as exception:  # pylint: disable=broad-exception-caught
+        attributes[ERROR_TYPE] = type(exception).__qualname__
+        raise
+    finally:
+        histogram.record(perf_counter() - start_time, attributes=attributes)
 
 
 # Messaging
