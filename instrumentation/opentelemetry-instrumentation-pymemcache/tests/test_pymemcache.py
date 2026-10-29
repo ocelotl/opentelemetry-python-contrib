@@ -28,10 +28,15 @@ from opentelemetry.semconv._incubating.attributes.net_attributes import (
     NET_PEER_NAME,
     NET_PEER_PORT,
 )
+from opentelemetry.semconv._incubating.metrics.db_metrics import (
+    DB_CLIENT_OPERATION_DURATION,
+)
 from opentelemetry.semconv.attributes.db_attributes import (
+    DB_OPERATION_NAME,
     DB_QUERY_TEXT,
     DB_SYSTEM_NAME,
 )
+from opentelemetry.semconv.attributes.error_attributes import ERROR_TYPE
 from opentelemetry.semconv.attributes.server_attributes import (
     SERVER_ADDRESS,
     SERVER_PORT,
@@ -661,3 +666,107 @@ class PymemcacheHashClientTestCase(TestBase):
 
         spans = self.memory_exporter.get_finished_spans()
         self.check_spans(spans, 2, ["add key", "delete key"])
+
+
+class PymemcacheOperationDurationTestCase(TestBase):
+    """Tests for the db.client.operation.duration histogram."""
+
+    def setUp(self):
+        super().setUp()
+        PymemcacheInstrumentor().instrument()
+
+    def tearDown(self):
+        super().tearDown()
+        PymemcacheInstrumentor().uninstrument()
+
+    def make_client(self, mock_socket_values, **kwargs):
+        client = pymemcache.client.base.Client((TEST_HOST, TEST_PORT), **kwargs)
+        client.sock = MockSocket(list(mock_socket_values))
+        return client
+
+    def _duration_points(self):
+        metrics = [metric for metric in self.get_sorted_metrics() if metric.name == DB_CLIENT_OPERATION_DURATION]
+        self.assertEqual(len(metrics), 1)
+        self.assertEqual(metrics[0].unit, "s")
+        return list(metrics[0].data.data_points)
+
+    def test_duration_recorded_on_a_successful_command(self):
+        client = self.make_client([b"STORED\r\n"])
+        client.set(b"key", b"value", noreply=False)
+
+        points = self._duration_points()
+        self.assertEqual(len(points), 1)
+        self.assertEqual(points[0].count, 1)
+        self.assertGreaterEqual(points[0].sum, 0.0)
+
+        attributes = dict(points[0].attributes)
+        self.assertEqual(
+            attributes,
+            {
+                DB_SYSTEM_NAME: "memcached",
+                DB_OPERATION_NAME: "set",
+                SERVER_ADDRESS: TEST_HOST,
+                SERVER_PORT: TEST_PORT,
+            },
+        )
+        self.assertIs(type(attributes[DB_SYSTEM_NAME]), str)
+        self.assertIs(type(attributes[DB_OPERATION_NAME]), str)
+        self.assertIs(type(attributes[SERVER_ADDRESS]), str)
+        self.assertIs(type(attributes[SERVER_PORT]), int)
+
+    def test_duration_recorded_with_error_type_on_a_failed_command(self):
+        client = self.make_client([b"CLIENT_ERROR some message\r\n"])
+        with self.assertRaises(MemcacheClientError):
+            client.set(b"key", b"value", noreply=False)
+
+        points = self._duration_points()
+        self.assertEqual(len(points), 1)
+        self.assertEqual(points[0].count, 1)
+
+        attributes = dict(points[0].attributes)
+        self.assertEqual(attributes[ERROR_TYPE], "MemcacheClientError")
+        self.assertEqual(attributes[DB_OPERATION_NAME], "set")
+        self.assertIs(type(attributes[ERROR_TYPE]), str)
+
+    def test_error_type_agrees_with_the_span(self):
+        client = self.make_client([b"CLIENT_ERROR some message\r\n"])
+        with self.assertRaises(MemcacheClientError):
+            client.set(b"key", b"value", noreply=False)
+
+        span = self.memory_exporter.get_finished_spans()[0]
+        self.assertFalse(span.status.is_ok)
+
+        attributes = dict(self._duration_points()[0].attributes)
+        self.assertEqual(attributes[ERROR_TYPE], "MemcacheClientError")
+
+    def test_server_port_is_absent_for_a_unix_socket_client(self):
+        client = self.make_client([b"STORED\r\n"])
+        client.server = "/tmp/memcached.sock"
+        client.set(b"key", b"value", noreply=False)
+
+        attributes = dict(self._duration_points()[0].attributes)
+        self.assertEqual(attributes[SERVER_ADDRESS], "/tmp/memcached.sock")
+        self.assertNotIn(SERVER_PORT, attributes)
+
+    def test_nothing_recorded_while_instrumentation_is_suppressed(self):
+        client = self.make_client([b"STORED\r\n"])
+        with suppress_instrumentation():
+            client.set(b"key", b"value", noreply=False)
+
+        self.assertEqual(self.get_sorted_metrics(), [])
+
+    def test_duration_recorded_in_every_semconv_mode(self):
+        for mode in ("", "database", "database/dup"):
+            with self.subTest(mode=mode):
+                PymemcacheInstrumentor().uninstrument()
+                with mock.patch.dict("os.environ", {"OTEL_SEMCONV_STABILITY_OPT_IN": mode}):
+                    _OpenTelemetrySemanticConventionStability._initialized = False
+                    PymemcacheInstrumentor().instrument()
+                    client = self.make_client([b"STORED\r\n"])
+                    client.set(b"key", b"value", noreply=False)
+
+                attributes = dict(self._duration_points()[0].attributes)
+                self.assertEqual(attributes[DB_SYSTEM_NAME], "memcached")
+                self.assertEqual(attributes[DB_OPERATION_NAME], "set")
+                self.memory_metrics_reader.get_metrics_data()
+        _OpenTelemetrySemanticConventionStability._initialized = False
