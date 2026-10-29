@@ -68,9 +68,11 @@ import wrapt
 
 from opentelemetry import trace
 from opentelemetry.instrumentation._semconv import (
+    _db_client_operation_duration_attributes,
     _get_schema_url_for_signal_types,
     _OpenTelemetrySemanticConventionStability,
     _OpenTelemetryStabilitySignalType,
+    _record_db_client_operation_duration,
     _report_new,
     _set_db_name,
     _set_db_statement,
@@ -85,16 +87,22 @@ from opentelemetry.instrumentation.asyncpg.package import _instruments
 from opentelemetry.instrumentation.asyncpg.version import __version__
 from opentelemetry.instrumentation.instrumentor import BaseInstrumentor
 from opentelemetry.instrumentation.utils import is_instrumentation_enabled, unwrap
+from opentelemetry.metrics import get_meter
 from opentelemetry.semconv._incubating.attributes.db_attributes import (
+    DbSystemNameValues,
     DbSystemValues,
 )
 from opentelemetry.semconv._incubating.attributes.net_attributes import (
     NetTransportValues,
 )
+from opentelemetry.semconv._incubating.metrics.db_metrics import (
+    create_db_client_operation_duration,
+)
 from opentelemetry.semconv.attributes.error_attributes import ERROR_TYPE
 from opentelemetry.semconv.attributes.network_attributes import (
     NetworkTransportValues,
 )
+from opentelemetry.semconv.schemas import Schemas
 from opentelemetry.trace import SpanKind
 from opentelemetry.trace.status import Status, StatusCode
 
@@ -162,6 +170,22 @@ def _hydrate_span_from_args(
     return span_attributes
 
 
+def _hydrate_metric_attributes_from_connection(connection, operation_name: str) -> dict:
+    """Get the db.client.operation.duration attributes a connection can supply.
+
+    ``Connection._addr`` is a host/port tuple for a TCP connection and a unix
+    socket path, which has no port, for a socket connection.
+    """
+    addr = getattr(connection, "_addr", None)
+    return _db_client_operation_duration_attributes(
+        DbSystemNameValues.POSTGRESQL.value,
+        operation_name=operation_name,
+        namespace=getattr(getattr(connection, "_params", None), "database", None),
+        server_address=addr[0] if isinstance(addr, tuple) else addr,
+        server_port=addr[1] if isinstance(addr, tuple) else None,
+    )
+
+
 class AsyncPGInstrumentor(BaseInstrumentor):
     _leading_comment_remover = re.compile(r"^/\*.*?\*/")
     _tracer = None
@@ -189,6 +213,13 @@ class AsyncPGInstrumentor(BaseInstrumentor):
                 ]
             ),
         )
+        meter = get_meter(
+            __name__,
+            __version__,
+            kwargs.get("meter_provider"),
+            schema_url=Schemas.V1_33_0.value,
+        )
+        self._duration_histogram = create_db_client_operation_duration(meter)
 
         for method in [
             "Connection.execute",
@@ -260,9 +291,12 @@ class AsyncPGInstrumentor(BaseInstrumentor):
             semconv_opt_in_mode=self._semconv_opt_in_mode,
         )
 
+        metric_attributes = _hydrate_metric_attributes_from_connection(instance, name)
+
         with self._tracer.start_as_current_span(name, kind=SpanKind.CLIENT, attributes=span_attributes) as span:
             try:
-                result = await func(*args, **kwargs)
+                with _record_db_client_operation_duration(self._duration_histogram, metric_attributes):
+                    result = await func(*args, **kwargs)
             except Exception as exc:  # pylint: disable=W0703
                 exception = exc
                 raise
@@ -297,6 +331,8 @@ class AsyncPGInstrumentor(BaseInstrumentor):
             semconv_opt_in_mode=self._semconv_opt_in_mode,
         )
 
+        metric_attributes = _hydrate_metric_attributes_from_connection(instance._connection, name)
+
         stop = False
         with self._tracer.start_as_current_span(
             f"CURSOR: {name}",
@@ -304,10 +340,12 @@ class AsyncPGInstrumentor(BaseInstrumentor):
             attributes=span_attributes,
         ) as span:
             try:
-                result = await func(*args, **kwargs)
-            except StopAsyncIteration:
-                # Do not show this exception to the span
-                stop = True
+                with _record_db_client_operation_duration(self._duration_histogram, metric_attributes):
+                    try:
+                        result = await func(*args, **kwargs)
+                    except StopAsyncIteration:
+                        # Do not show this exception to the span
+                        stop = True
             except Exception as exc:  # pylint: disable=W0703
                 exception = exc
                 raise
@@ -340,9 +378,12 @@ class AsyncPGInstrumentor(BaseInstrumentor):
             semconv_opt_in_mode=self._semconv_opt_in_mode,
         )
 
+        metric_attributes = _hydrate_metric_attributes_from_connection(instance._connection, name)
+
         with self._tracer.start_as_current_span(name, kind=SpanKind.CLIENT, attributes=span_attributes) as span:
             try:
-                result = await func(*args, **kwargs)
+                with _record_db_client_operation_duration(self._duration_histogram, metric_attributes):
+                    result = await func(*args, **kwargs)
             except Exception as exc:  # pylint: disable=W0703
                 exception = exc
                 raise
