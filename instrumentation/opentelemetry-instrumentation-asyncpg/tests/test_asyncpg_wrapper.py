@@ -39,8 +39,12 @@ from opentelemetry.semconv._incubating.attributes.net_attributes import (
     NET_TRANSPORT,
     NetTransportValues,
 )
+from opentelemetry.semconv._incubating.metrics.db_metrics import (
+    DB_CLIENT_OPERATION_DURATION,
+)
 from opentelemetry.semconv.attributes.db_attributes import (
     DB_NAMESPACE,
+    DB_OPERATION_NAME,
     DB_QUERY_TEXT,
     DB_SYSTEM_NAME,
 )
@@ -638,3 +642,181 @@ class TestAsyncPGSemconvMigration(TestBase):
         span = spans[0]
         self.assertFalse(span.status.is_ok)
         self.assertEqual(span.attributes[ERROR_TYPE], "RuntimeError")
+
+
+class TestAsyncPGOperationDuration(TestBase):
+    """Tests for the db.client.operation.duration histogram."""
+
+    def setUp(self):
+        super().setUp()
+        _OpenTelemetrySemanticConventionStability._initialized = False
+
+    def tearDown(self):
+        super().tearDown()
+        AsyncPGInstrumentor().uninstrument()
+        _OpenTelemetrySemanticConventionStability._initialized = False
+
+    @staticmethod
+    def _make_conn(addr=("testhost", 5432), error=None):
+        async def protocol_query(*args, **kwargs):
+            if error is not None:
+                raise error
+            return b"SELECT 1", [], True
+
+        conn = mock.Mock()
+        conn.is_closed = lambda: False
+        conn._pool_release_ctr = 0
+        conn._query_loggers = []
+        conn._protocol = mock.Mock()
+        conn._protocol.query = protocol_query
+        conn._addr = addr
+        params = mock.Mock()
+        params.database = "testdb"
+        params.user = "testuser"
+        conn._params = params
+        return conn
+
+    def _execute(self, conn, query="SELECT 1"):
+        AsyncPGInstrumentor().instrument(tracer_provider=self.tracer_provider)
+
+        async def do_execute():
+            execute = asyncpg.connection.Connection.execute.__get__(  # pylint: disable=no-value-for-parameter
+                conn, asyncpg.connection.Connection
+            )
+            await execute(query)
+
+        asyncio.run(do_execute())
+
+    def _duration_points(self):
+        metrics = [metric for metric in self.get_sorted_metrics() if metric.name == DB_CLIENT_OPERATION_DURATION]
+        self.assertEqual(len(metrics), 1)
+        self.assertEqual(metrics[0].unit, "s")
+        return list(metrics[0].data.data_points)
+
+    def test_duration_recorded_on_a_successful_query(self):
+        self._execute(self._make_conn())
+
+        points = self._duration_points()
+        self.assertEqual(len(points), 1)
+        self.assertEqual(points[0].count, 1)
+        self.assertGreaterEqual(points[0].sum, 0.0)
+
+        attributes = dict(points[0].attributes)
+        self.assertEqual(
+            attributes,
+            {
+                DB_SYSTEM_NAME: "postgresql",
+                DB_OPERATION_NAME: "SELECT",
+                DB_NAMESPACE: "testdb",
+                SERVER_ADDRESS: "testhost",
+                SERVER_PORT: 5432,
+            },
+        )
+        self.assertIs(type(attributes[SERVER_PORT]), int)
+        for key in (DB_SYSTEM_NAME, DB_OPERATION_NAME, DB_NAMESPACE, SERVER_ADDRESS):
+            self.assertIs(type(attributes[key]), str)
+
+    def test_duration_recorded_in_every_semconv_mode(self):
+        for mode in ("", "database", "database/dup"):
+            with self.subTest(mode=mode), use_semconv_opt_in(mode):
+                self._execute(self._make_conn())
+                attributes = dict(self._duration_points()[0].attributes)
+                self.assertEqual(attributes[DB_SYSTEM_NAME], "postgresql")
+                self.assertEqual(attributes[DB_OPERATION_NAME], "SELECT")
+                AsyncPGInstrumentor().uninstrument()
+
+    def test_duration_recorded_with_error_type_on_a_failed_query(self):
+        error = RuntimeError("db error")
+        with self.assertRaises(RuntimeError) as raised:
+            self._execute(self._make_conn(error=error))
+        self.assertIs(raised.exception, error)
+
+        points = self._duration_points()
+        self.assertEqual(len(points), 1)
+        self.assertEqual(points[0].count, 1)
+        attributes = dict(points[0].attributes)
+        self.assertEqual(attributes[ERROR_TYPE], "RuntimeError")
+        self.assertEqual(attributes[DB_OPERATION_NAME], "SELECT")
+
+    def test_error_type_is_recorded_even_when_the_span_omits_it(self):
+        """The span gates error.type on the opt-in mode; the histogram does not."""
+        with use_semconv_opt_in(""):
+            with self.assertRaises(RuntimeError):
+                self._execute(self._make_conn(error=RuntimeError("db error")))
+
+        span = self.memory_exporter.get_finished_spans()[0]
+        self.assertNotIn(ERROR_TYPE, span.attributes)
+        self.assertEqual(dict(self._duration_points()[0].attributes)[ERROR_TYPE], "RuntimeError")
+
+    def test_server_port_is_absent_for_a_unix_socket_connection(self):
+        self._execute(self._make_conn(addr="/var/run/postgresql/.s.PGSQL.5432"))
+
+        attributes = dict(self._duration_points()[0].attributes)
+        self.assertEqual(attributes[SERVER_ADDRESS], "/var/run/postgresql/.s.PGSQL.5432")
+        self.assertNotIn(SERVER_PORT, attributes)
+
+    def test_nothing_recorded_while_instrumentation_is_suppressed(self):
+        conn = self._make_conn()
+        with suppress_instrumentation():
+            self._execute(conn)
+
+        self.assertEqual(self.get_sorted_metrics(), [])
+
+    def test_an_exhausted_cursor_is_recorded_without_error_type(self):
+        async def bind_mock(*args, **kwargs):
+            return []
+
+        async def exec_mock(*args, **kwargs):
+            return [], None, True
+
+        conn = mock.Mock()
+        conn.is_closed = lambda: False
+        conn._protocol = mock.Mock()
+        conn._protocol.bind = bind_mock
+        conn._protocol.execute = exec_mock
+        conn._protocol.bind_execute = exec_mock
+        conn._protocol.close_portal = bind_mock
+        conn._addr = ("testhost", 5432)
+        params = mock.Mock()
+        params.database = "testdb"
+        conn._params = params
+
+        state = mock.Mock()
+        state.closed = False
+
+        AsyncPGInstrumentor().instrument(tracer_provider=self.tracer_provider)
+        crs_iter = cursor.CursorIterator(conn, "SELECT * FROM test", state, [], Record, 1, 1)
+        with pytest.raises(StopAsyncIteration):
+            asyncio.run(anext(crs_iter))
+
+        points = self._duration_points()
+        self.assertEqual(len(points), 1)
+        attributes = dict(points[0].attributes)
+        self.assertNotIn(ERROR_TYPE, attributes)
+        self.assertEqual(attributes[DB_OPERATION_NAME], "SELECT")
+
+    def test_duration_recorded_for_a_prepared_statement(self):
+        async def bind_execute_mock(*args, **kwargs):
+            return [], b"SELECT 1", True
+
+        conn = mock.Mock()
+        conn._pool_release_ctr = 0
+        conn.is_closed = lambda: False
+        conn._protocol = mock.Mock()
+        conn._protocol.bind_execute = bind_execute_mock
+        conn._addr = ("testhost", 5432)
+        params = mock.Mock()
+        params.database = "testdb"
+        conn._params = params
+
+        state = mock.Mock()
+        state.closed = False
+
+        AsyncPGInstrumentor().instrument(tracer_provider=self.tracer_provider)
+        stmt = PreparedStatement(conn, "SELECT * FROM users", state)
+        asyncio.run(stmt.fetch())
+
+        attributes = dict(self._duration_points()[0].attributes)
+        self.assertEqual(attributes[DB_OPERATION_NAME], "SELECT")
+        self.assertEqual(attributes[DB_NAMESPACE], "testdb")
+        self.assertEqual(attributes[SERVER_ADDRESS], "testhost")

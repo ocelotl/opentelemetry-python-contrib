@@ -38,10 +38,16 @@ from opentelemetry.semconv._incubating.attributes.net_attributes import (
     NET_TRANSPORT,
     NetTransportValues,
 )
+from opentelemetry.semconv._incubating.metrics.db_metrics import (
+    DB_CLIENT_OPERATION_DURATION,
+)
 from opentelemetry.semconv.attributes.db_attributes import (
+    DB_NAMESPACE,
+    DB_OPERATION_NAME,
     DB_QUERY_TEXT,
     DB_SYSTEM_NAME,
 )
+from opentelemetry.semconv.attributes.error_attributes import ERROR_TYPE
 from opentelemetry.semconv.attributes.network_attributes import (
     NETWORK_TRANSPORT,
     NetworkTransportValues,
@@ -1658,3 +1664,179 @@ class TestBuildSpanMetaDataForPipeline(TestBase):
         self.assertEqual(command_stack, [])
         self.assertEqual(resource, "")
         self.assertEqual(span_name, "redis")
+
+
+class TestRedisOperationDuration(TestBase):
+    """Tests for the db.client.operation.duration histogram."""
+
+    def setUp(self):
+        super().setUp()
+        RedisInstrumentor().instrument(tracer_provider=self.tracer_provider)
+
+    def tearDown(self):
+        super().tearDown()
+        RedisInstrumentor().uninstrument()
+
+    def _duration_points(self):
+        metrics = [metric for metric in self.get_sorted_metrics() if metric.name == DB_CLIENT_OPERATION_DURATION]
+        self.assertEqual(len(metrics), 1)
+        self.assertEqual(metrics[0].unit, "s")
+        return list(metrics[0].data.data_points)
+
+    def test_duration_recorded_on_a_successful_command(self):
+        redis_client = redis.Redis()
+        with mock.patch.object(redis_client, "connection"):
+            redis_client.set("key", "value")
+
+        points = self._duration_points()
+        self.assertEqual(len(points), 1)
+        self.assertEqual(points[0].count, 1)
+        self.assertGreaterEqual(points[0].sum, 0.0)
+
+        attributes = dict(points[0].attributes)
+        self.assertEqual(
+            attributes,
+            {
+                DB_SYSTEM_NAME: "redis",
+                DB_OPERATION_NAME: "SET",
+                DB_NAMESPACE: "0",
+                SERVER_ADDRESS: "localhost",
+                SERVER_PORT: 6379,
+            },
+        )
+        self.assertIs(type(attributes[SERVER_PORT]), int)
+        for key in (DB_SYSTEM_NAME, DB_OPERATION_NAME, DB_NAMESPACE, SERVER_ADDRESS):
+            self.assertIs(type(attributes[key]), str)
+
+    def test_namespace_is_the_database_index_as_a_string(self):
+        redis_client = redis.Redis.from_url("redis://localhost:6379/3")
+        with mock.patch.object(redis_client, "connection"):
+            redis_client.get("key")
+
+        self.assertEqual(dict(self._duration_points()[0].attributes)[DB_NAMESPACE], "3")
+
+    def test_server_port_is_absent_for_a_unix_socket_client(self):
+        redis_client = redis.Redis.from_url("unix://foo@/path/to/socket.sock?db=3&password=bar")
+        with mock.patch.object(redis_client, "connection"):
+            redis_client.set("key", "value")
+
+        attributes = dict(self._duration_points()[0].attributes)
+        self.assertEqual(attributes[SERVER_ADDRESS], "/path/to/socket.sock")
+        self.assertNotIn(SERVER_PORT, attributes)
+        self.assertEqual(attributes[DB_NAMESPACE], "3")
+
+    def test_only_db_system_name_without_connection_kwargs(self):
+        redis_client = redis.Redis()
+        redis_client.connection_pool = mock.Mock(spec=["disconnect"])
+        with mock.patch.object(redis_client, "connection"):
+            redis_client.set("key", "value")
+
+        attributes = dict(self._duration_points()[0].attributes)
+        self.assertEqual(attributes, {DB_SYSTEM_NAME: "redis", DB_OPERATION_NAME: "SET"})
+
+    def test_duration_recorded_with_error_type_on_a_failed_command(self):
+        server = fakeredis.FakeServer()
+        server.connected = False
+        redis_client = fakeredis.FakeStrictRedis(server=server)
+        with self.assertRaises(redis_ConnectionError):
+            redis_client.set("key", "value")
+
+        attributes = dict(self._duration_points()[0].attributes)
+        self.assertEqual(attributes[ERROR_TYPE], "ConnectionError")
+        self.assertEqual(attributes[DB_OPERATION_NAME], "SET")
+        self.assertIs(type(attributes[ERROR_TYPE]), str)
+
+    def test_a_pipeline_is_recorded_without_an_operation_name(self):
+        redis_client = fakeredis.FakeStrictRedis()
+        pipe = redis_client.pipeline()
+        pipe.set("key", "value")
+        pipe.execute()
+
+        pipelines = [point for point in self._duration_points() if DB_OPERATION_NAME not in dict(point.attributes)]
+        self.assertEqual(len(pipelines), 1)
+        self.assertEqual(dict(pipelines[0].attributes)[DB_SYSTEM_NAME], "redis")
+
+    def test_a_watch_error_is_recorded_without_error_type(self):
+        with pytest.raises(WatchError):
+            redis_client = fakeredis.FakeStrictRedis()
+            pipe = redis_client.pipeline(transaction=True)
+            pipe.watch("a")
+            redis_client.set("a", "bad")
+            pipe.multi()
+            pipe.set("a", "1")
+            pipe.execute()
+
+        for point in self._duration_points():
+            self.assertNotIn(ERROR_TYPE, dict(point.attributes))
+
+    def test_nothing_recorded_while_instrumentation_is_suppressed(self):
+        redis_client = redis.Redis()
+        with suppress_instrumentation():
+            with mock.patch.object(redis_client, "connection"):
+                redis_client.set("key", "value")
+
+        self.assertEqual(self.get_sorted_metrics(), [])
+
+    def test_duration_recorded_in_every_semconv_mode(self):
+        for mode in ("", "database", "database/dup"):
+            with self.subTest(mode=mode):
+                RedisInstrumentor().uninstrument()
+                with patch.dict(os.environ, {OTEL_SEMCONV_STABILITY_OPT_IN: mode}):
+                    _OpenTelemetrySemanticConventionStability._initialized = False
+                    RedisInstrumentor().instrument(tracer_provider=self.tracer_provider)
+                    redis_client = redis.Redis()
+                    with mock.patch.object(redis_client, "connection"):
+                        redis_client.set("key", "value")
+
+                attributes = dict(self._duration_points()[0].attributes)
+                self.assertEqual(attributes[DB_SYSTEM_NAME], "redis")
+                self.assertEqual(attributes[DB_OPERATION_NAME], "SET")
+        _OpenTelemetrySemanticConventionStability._initialized = False
+
+
+class TestAsyncRedisOperationDuration(IsolatedAsyncioTestCase, TestBase):
+    """Tests for the db.client.operation.duration histogram on the async client."""
+
+    def setUp(self):
+        super().setUp()
+        RedisInstrumentor().instrument(tracer_provider=self.tracer_provider)
+
+    def tearDown(self):
+        super().tearDown()
+        RedisInstrumentor().uninstrument()
+
+    def _duration_points(self):
+        metrics = [metric for metric in self.get_sorted_metrics() if metric.name == DB_CLIENT_OPERATION_DURATION]
+        self.assertEqual(len(metrics), 1)
+        return list(metrics[0].data.data_points)
+
+    async def test_duration_recorded_on_a_successful_command(self):
+        redis_client = redis.asyncio.Redis()
+        with mock.patch.object(redis_client, "connection", AsyncMock()):
+            await redis_client.set("key", "value")
+
+        attributes = dict(self._duration_points()[0].attributes)
+        self.assertEqual(attributes[DB_SYSTEM_NAME], "redis")
+        self.assertEqual(attributes[DB_OPERATION_NAME], "SET")
+        self.assertEqual(attributes[SERVER_ADDRESS], "localhost")
+        self.assertEqual(attributes[SERVER_PORT], 6379)
+
+    async def test_duration_recorded_with_error_type_on_a_failed_command(self):
+        server = fakeredis.FakeServer()
+        server.connected = False
+        redis_client = FakeRedis(server=server)
+        with self.assertRaises(redis_ConnectionError):
+            await redis_client.set("key", "value")
+
+        attributes = dict(self._duration_points()[0].attributes)
+        self.assertEqual(attributes[ERROR_TYPE], "ConnectionError")
+
+    async def test_an_async_pipeline_is_recorded_without_an_operation_name(self):
+        redis_client = FakeRedis()
+        async with redis_client.pipeline(transaction=True) as pipe:
+            pipe.set("key", "value")
+            await pipe.execute()
+
+        pipelines = [point for point in self._duration_points() if DB_OPERATION_NAME not in dict(point.attributes)]
+        self.assertEqual(len(pipelines), 1)
+        self.assertEqual(dict(pipelines[0].attributes)[DB_SYSTEM_NAME], "redis")
