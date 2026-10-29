@@ -301,6 +301,7 @@ _ENVIRON_SPAN_KEY = "opentelemetry-flask.span_key"
 _ENVIRON_ACTIVATION_KEY = "opentelemetry-flask.activation_key"
 _ENVIRON_REQCTX_REF_KEY = "opentelemetry-flask.reqctx_ref_key"
 _ENVIRON_TOKEN = "opentelemetry-flask.token"
+_ENVIRON_SQLCOMMENTER_TOKEN = "opentelemetry-flask.sqlcommenter_token"
 
 _excluded_urls_from_env = get_excluded_urls("FLASK")
 
@@ -503,7 +504,7 @@ def _wrapped_before_request(
                 if commenter_options.get("route", True) and flask.request.url_rule and flask.request.url_rule.rule:
                     flask_info["route"] = flask.request.url_rule.rule
             sqlcommenter_context = context.set_value("SQLCOMMENTER_ORM_TAGS_AND_VALUES", flask_info, current_context)
-            context.attach(sqlcommenter_context)
+            flask_request_environ[_ENVIRON_SQLCOMMENTER_TOKEN] = context.attach(sqlcommenter_context)
 
     return _before_request
 
@@ -535,6 +536,10 @@ def _wrapped_teardown_request(
             return
 
         try:
+            sqlcommenter_token = flask.request.environ.pop(_ENVIRON_SQLCOMMENTER_TOKEN, None)
+            if sqlcommenter_token:
+                context.detach(sqlcommenter_token)
+
             # For Flask 3.1+, check if this is a streaming response that might
             # have already been cleaned up to prevent double cleanup
             is_streaming = False
