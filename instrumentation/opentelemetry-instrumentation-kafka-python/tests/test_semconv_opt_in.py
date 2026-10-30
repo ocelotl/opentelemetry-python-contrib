@@ -24,6 +24,8 @@ _TOPIC: str = "test_topic"
 _PARTITION: int = 3
 _BOOTSTRAP_SERVERS: list[str] = ["localhost:9092"]
 _BOOTSTRAP_SERVERS_JSON: str = '["localhost:9092"]'
+_HOST: str = "localhost"
+_PORT: int = 9092
 _LEGACY_SCHEMA_URL: str = "https://opentelemetry.io/schemas/1.11.0"
 _MESSAGING_SCHEMA_URL: str = "https://opentelemetry.io/schemas/1.44.0"
 
@@ -38,6 +40,7 @@ _NEW_ATTRIBUTES: set[str] = {
     messaging_attributes.MESSAGING_OPERATION_NAME,
     messaging_attributes.MESSAGING_OPERATION_TYPE,
     server_attributes.SERVER_ADDRESS,
+    server_attributes.SERVER_PORT,
 }
 
 
@@ -151,10 +154,9 @@ class TestMessagingSemanticConventionOptIn(TestBase):
                 span.attributes[messaging_attributes.MESSAGING_DESTINATION_PARTITION_ID],
                 str,
             )
-            self.assertEqual(
-                span.attributes[server_attributes.SERVER_ADDRESS],
-                _BOOTSTRAP_SERVERS_JSON,
-            )
+            self.assertEqual(span.attributes[server_attributes.SERVER_ADDRESS], _HOST)
+            self.assertEqual(span.attributes[server_attributes.SERVER_PORT], _PORT)
+            self.assertIsInstance(span.attributes[server_attributes.SERVER_PORT], int)
             self.assertEqual(
                 span.attributes[messaging_attributes.MESSAGING_OPERATION_NAME],
                 operation,

@@ -104,13 +104,21 @@ old                           stable
 ============================= ======================================
 ``messaging.destination``     ``messaging.destination.name``
 ``messaging.kafka.partition`` ``messaging.destination.partition.id``
-``messaging.url``             ``server.address``
+``messaging.url``             ``server.address`` and ``server.port``
 ============================= ======================================
 
 ``messaging.destination.partition.id`` is a string, while
-``messaging.kafka.partition`` was an integer. The stable conventions also add
-``messaging.operation.name`` and ``messaging.operation.type``, which the old
-conventions did not have. ``messaging.system`` is emitted in every mode.
+``messaging.kafka.partition`` was an integer.
+
+``messaging.url`` carries the whole ``bootstrap_servers`` value JSON-encoded.
+``server.address`` and ``server.port`` carry the host and the port of its
+first entry instead, parsed out of it, because the stable conventions define
+them as one host and one port rather than as a connection string.
+``server.port`` is omitted when that entry names no port.
+
+The stable conventions also add ``messaging.operation.name`` and
+``messaging.operation.type``, which the old conventions did not have.
+``messaging.system`` is emitted in every mode.
 
 API
 ---

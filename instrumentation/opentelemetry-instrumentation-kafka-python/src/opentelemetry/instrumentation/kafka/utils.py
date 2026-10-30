@@ -4,6 +4,8 @@
 import json
 from collections.abc import Callable
 from logging import getLogger
+from re import compile as re_compile
+from socket import AF_INET6, inet_pton
 
 from kafka.record.abc import ABCRecord
 
@@ -21,6 +23,8 @@ from opentelemetry.trace import Tracer
 from opentelemetry.trace.span import Span
 
 _LOG = getLogger(__name__)
+
+_SECURITY_PROTOCOL_PREFIX = re_compile("^.*://")
 
 
 class KafkaPropertiesExtractor:
@@ -94,9 +98,57 @@ _kafka_getter = KafkaContextGetter()
 _kafka_setter = KafkaContextSetter()
 
 
+def _set_bootstrap_servers_attributes(span: Span, bootstrap_servers: str | list[str] | None) -> None:
+    """Populate ``server.address`` and ``server.port`` from kafka-python's
+    ``bootstrap_servers``.
+
+    The value is one ``host:port`` entry, a comma-separated string of them, or
+    a list of them, and each entry may carry a leading security protocol as in
+    ``SASL_SSL://broker:9093``. Only the first entry is recorded, the way
+    ``opentelemetry-instrumentation-confluent-kafka`` records it. An entry
+    carrying no port leaves ``server.port`` unset rather than assuming 9092,
+    so the span reports what was configured.
+    """
+    if not bootstrap_servers:
+        return
+
+    entries = bootstrap_servers.split(",") if isinstance(bootstrap_servers, str) else bootstrap_servers
+
+    entry = ""
+    for candidate in entries:
+        entry = _SECURITY_PROTOCOL_PREFIX.sub("", str(candidate).strip())
+        if entry:
+            break
+
+    if not entry:
+        return
+
+    if entry.startswith("["):
+        host, _, rest = entry[1:].partition("]")
+        port = rest[1:] if rest.startswith(":") else ""
+    elif ":" not in entry:
+        host, port = entry, ""
+    else:
+        try:
+            inet_pton(AF_INET6, entry)
+        except (OSError, ValueError):
+            host, _, port = entry.rpartition(":")
+        else:
+            host, port = entry, ""
+
+    if not host:
+        return
+
+    span.set_attribute(server_attributes.SERVER_ADDRESS, host)
+    if port.isdecimal():
+        span.set_attribute(server_attributes.SERVER_PORT, int(port))
+    elif port:
+        _LOG.debug("non-numeric port in bootstrap_servers: %r", port)
+
+
 def _enrich_span(
     span: Span,
-    bootstrap_servers: list[str],
+    bootstrap_servers: str | list[str] | None,
     topic: str,
     partition: int | None,
     operation: messaging_attributes.MessagingOperationTypeValues,
@@ -123,7 +175,7 @@ def _enrich_span(
                 messaging_attributes.MESSAGING_DESTINATION_PARTITION_ID,
                 str(partition),
             )
-        span.set_attribute(server_attributes.SERVER_ADDRESS, json.dumps(bootstrap_servers))
+        _set_bootstrap_servers_attributes(span, bootstrap_servers)
         span.set_attribute(messaging_attributes.MESSAGING_OPERATION_NAME, operation.value)
         span.set_attribute(messaging_attributes.MESSAGING_OPERATION_TYPE, operation.value)
 

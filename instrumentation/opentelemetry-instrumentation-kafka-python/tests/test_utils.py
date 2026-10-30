@@ -14,10 +14,12 @@ from opentelemetry.instrumentation.kafka.utils import (
     _get_span_name,
     _kafka_getter,
     _kafka_setter,
+    _set_bootstrap_servers_attributes,
     _wrap_next,
     _wrap_send,
 )
 from opentelemetry.semconv._incubating.attributes import messaging_attributes
+from opentelemetry.semconv.attributes import server_attributes
 from opentelemetry.semconv.trace import SpanAttributes
 from opentelemetry.test.test_base import TestBase
 from opentelemetry.trace import SpanKind, StatusCode
@@ -355,3 +357,81 @@ class TestWrapSendSpanLifetime(TestBase):
         self.assertEqual(span.kind, SpanKind.PRODUCER)
         self.assertIs(span.status.status_code, StatusCode.UNSET)
         self.assertEqual(len(span.events), 0)
+
+
+def recorded_server_attributes(bootstrap_servers) -> dict:
+    span = mock.MagicMock()
+    _set_bootstrap_servers_attributes(span, bootstrap_servers)
+    return {call.args[0]: call.args[1] for call in span.set_attribute.call_args_list}
+
+
+class TestSetBootstrapServersAttributes(TestCase):
+    """``bootstrap_servers`` is a ``host:port`` entry, a comma-separated string
+    of them, or a list of them, so ``server.address`` and ``server.port`` have
+    to be parsed out of it rather than copied from it."""
+
+    def test_list_entry_splits_into_host_and_port(self):
+        self.assertEqual(
+            recorded_server_attributes(["kafka-1:9092", "kafka-2:9092"]),
+            {
+                server_attributes.SERVER_ADDRESS: "kafka-1",
+                server_attributes.SERVER_PORT: 9092,
+            },
+        )
+
+    def test_comma_separated_string_uses_the_first_entry(self):
+        self.assertEqual(
+            recorded_server_attributes("kafka-1:9092,kafka-2:9092"),
+            {
+                server_attributes.SERVER_ADDRESS: "kafka-1",
+                server_attributes.SERVER_PORT: 9092,
+            },
+        )
+
+    def test_bare_host_omits_the_port(self):
+        """``localhost`` is kafka-python's own default for ``bootstrap_servers``."""
+        self.assertEqual(
+            recorded_server_attributes("localhost"),
+            {server_attributes.SERVER_ADDRESS: "localhost"},
+        )
+
+    def test_security_protocol_prefix_is_stripped(self):
+        self.assertEqual(
+            recorded_server_attributes("SASL_SSL://broker:9093"),
+            {
+                server_attributes.SERVER_ADDRESS: "broker",
+                server_attributes.SERVER_PORT: 9093,
+            },
+        )
+
+    def test_bracketed_ipv6_literal_with_a_port(self):
+        self.assertEqual(
+            recorded_server_attributes("[::1]:9092"),
+            {
+                server_attributes.SERVER_ADDRESS: "::1",
+                server_attributes.SERVER_PORT: 9092,
+            },
+        )
+
+    def test_bracketed_ipv6_literal_without_a_port(self):
+        self.assertEqual(
+            recorded_server_attributes("[::1]"),
+            {server_attributes.SERVER_ADDRESS: "::1"},
+        )
+
+    def test_bare_ipv6_literal_is_not_split_on_its_last_colon(self):
+        self.assertEqual(
+            recorded_server_attributes("::1"),
+            {server_attributes.SERVER_ADDRESS: "::1"},
+        )
+
+    def test_non_numeric_port_is_omitted_rather_than_emitted(self):
+        self.assertEqual(
+            recorded_server_attributes("broker:not-a-port"),
+            {server_attributes.SERVER_ADDRESS: "broker"},
+        )
+
+    def test_empty_values_record_nothing(self):
+        for bootstrap_servers in (None, "", [], [""], ","):
+            with self.subTest(bootstrap_servers=bootstrap_servers):
+                self.assertEqual(recorded_server_attributes(bootstrap_servers), {})
