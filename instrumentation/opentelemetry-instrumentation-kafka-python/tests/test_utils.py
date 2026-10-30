@@ -359,7 +359,7 @@ class TestWrapSendSpanLifetime(TestBase):
         self.assertEqual(len(span.events), 0)
 
 
-def recorded_server_attributes(bootstrap_servers) -> dict:
+def recorded_server_attributes(bootstrap_servers: str | list[str] | None) -> dict[str, str | int]:
     span = mock.MagicMock()
     _set_bootstrap_servers_attributes(span, bootstrap_servers)
     return {call.args[0]: call.args[1] for call in span.set_attribute.call_args_list}
