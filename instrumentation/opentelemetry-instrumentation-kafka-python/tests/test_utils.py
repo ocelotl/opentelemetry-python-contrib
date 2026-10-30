@@ -6,6 +6,7 @@ from unittest import TestCase, mock
 
 from kafka.producer.future import FutureProduceResult, FutureRecordMetadata
 
+from opentelemetry.instrumentation._semconv import _StabilityMode
 from opentelemetry.instrumentation.kafka.utils import (
     KafkaPropertiesExtractor,
     _create_consumer_span,
@@ -13,9 +14,12 @@ from opentelemetry.instrumentation.kafka.utils import (
     _get_span_name,
     _kafka_getter,
     _kafka_setter,
+    _set_bootstrap_servers_attributes,
     _wrap_next,
     _wrap_send,
 )
+from opentelemetry.semconv._incubating.attributes import messaging_attributes
+from opentelemetry.semconv.attributes import server_attributes
 from opentelemetry.semconv.trace import SpanAttributes
 from opentelemetry.test.test_base import TestBase
 from opentelemetry.trace import SpanKind, StatusCode
@@ -87,7 +91,7 @@ class TestUtils(TestCase):
         kafka_producer = mock.MagicMock()
         expected_span_name = _get_span_name("send", self.topic_name)
 
-        wrapped_send = _wrap_send(tracer, produce_hook)
+        wrapped_send = _wrap_send(tracer, produce_hook, _StabilityMode.DEFAULT)
         retval = wrapped_send(original_send_callback, kafka_producer, self.args, self.kwargs)
 
         extract_bootstrap_servers.assert_called_once_with(kafka_producer)
@@ -102,6 +106,8 @@ class TestUtils(TestCase):
             extract_bootstrap_servers.return_value,
             self.topic_name,
             extract_send_partition.return_value,
+            messaging_attributes.MessagingOperationTypeValues.SEND,
+            _StabilityMode.DEFAULT,
         )
 
         set_span_in_context.assert_called_once_with(span)
@@ -127,7 +133,7 @@ class TestUtils(TestCase):
         original_next_callback = mock.MagicMock()
         kafka_consumer = mock.MagicMock()
 
-        wrapped_next = _wrap_next(tracer, consume_hook)
+        wrapped_next = _wrap_next(tracer, consume_hook, _StabilityMode.DEFAULT)
         record = wrapped_next(original_next_callback, kafka_consumer, self.args, self.kwargs)
 
         extract_bootstrap_servers.assert_called_once_with(kafka_consumer)
@@ -147,6 +153,7 @@ class TestUtils(TestCase):
             bootstrap_servers,
             self.args,
             self.kwargs,
+            _StabilityMode.DEFAULT,
         )
 
     @mock.patch("opentelemetry.trace.set_span_in_context")
@@ -174,6 +181,7 @@ class TestUtils(TestCase):
             bootstrap_servers,
             self.args,
             self.kwargs,
+            _StabilityMode.DEFAULT,
         )
 
         expected_span_name = _get_span_name("receive", record.topic)
@@ -187,7 +195,14 @@ class TestUtils(TestCase):
         set_span_in_context.assert_called_once_with(span, extracted_context)
         attach.assert_called_once_with(set_span_in_context.return_value)
 
-        enrich_span.assert_called_once_with(span, bootstrap_servers, record.topic, record.partition)
+        enrich_span.assert_called_once_with(
+            span,
+            bootstrap_servers,
+            record.topic,
+            record.partition,
+            messaging_attributes.MessagingOperationTypeValues.RECEIVE,
+            _StabilityMode.DEFAULT,
+        )
         consume_hook.assert_called_once_with(span, record, self.args, self.kwargs)
         detach.assert_called_once_with(attach.return_value)
 
@@ -239,7 +254,14 @@ class TestUtils(TestCase):
         span = mock.MagicMock()
         span.is_recording.return_value = True
 
-        _enrich_span(span, ["localhost:9092"], self.topic_name, 2)
+        _enrich_span(
+            span,
+            ["localhost:9092"],
+            self.topic_name,
+            2,
+            messaging_attributes.MessagingOperationTypeValues.SEND,
+            _StabilityMode.DEFAULT,
+        )
 
         span.set_attribute.assert_any_call(SpanAttributes.MESSAGING_KAFKA_PARTITION, 2)
 
@@ -247,10 +269,36 @@ class TestUtils(TestCase):
         span = mock.MagicMock()
         span.is_recording.return_value = True
 
-        _enrich_span(span, ["localhost:9092"], self.topic_name, None)
+        _enrich_span(
+            span,
+            ["localhost:9092"],
+            self.topic_name,
+            None,
+            messaging_attributes.MessagingOperationTypeValues.SEND,
+            _StabilityMode.DEFAULT,
+        )
 
         recorded_attributes = {call.args[0] for call in span.set_attribute.call_args_list}
         self.assertNotIn(SpanAttributes.MESSAGING_KAFKA_PARTITION, recorded_attributes)
+
+    def test_enrich_span_omits_partition_when_none_in_messaging_mode(self) -> None:
+        span = mock.MagicMock()
+        span.is_recording.return_value = True
+
+        _enrich_span(
+            span,
+            ["localhost:9092"],
+            self.topic_name,
+            None,
+            messaging_attributes.MessagingOperationTypeValues.SEND,
+            _StabilityMode.MESSAGING,
+        )
+
+        recorded_attributes = {call.args[0] for call in span.set_attribute.call_args_list}
+        self.assertNotIn(
+            messaging_attributes.MESSAGING_DESTINATION_PARTITION_ID,
+            recorded_attributes,
+        )
 
 
 @mock.patch(
@@ -276,7 +324,7 @@ class TestWrapSendSpanLifetime(TestBase):
         def failing_send(*args, **kwargs):
             raise error
 
-        wrapped_send = _wrap_send(self.tracer, None)
+        wrapped_send = _wrap_send(self.tracer, None, _StabilityMode.DEFAULT)
 
         with self.assertRaises(ConnectionError) as raised:
             wrapped_send(failing_send, self.producer, self.args, self.kwargs)
@@ -296,7 +344,7 @@ class TestWrapSendSpanLifetime(TestBase):
     def test_wrap_send_leaves_successful_send_unchanged(self, _extract_send_partition: mock.MagicMock) -> None:
         original_send = mock.MagicMock()
 
-        wrapped_send = _wrap_send(self.tracer, None)
+        wrapped_send = _wrap_send(self.tracer, None, _StabilityMode.DEFAULT)
         retval = wrapped_send(original_send, self.producer, self.args, self.kwargs)
 
         original_send.assert_called_once_with(*self.args, **self.kwargs)
@@ -309,3 +357,81 @@ class TestWrapSendSpanLifetime(TestBase):
         self.assertEqual(span.kind, SpanKind.PRODUCER)
         self.assertIs(span.status.status_code, StatusCode.UNSET)
         self.assertEqual(len(span.events), 0)
+
+
+def recorded_server_attributes(bootstrap_servers: str | list[str] | None) -> dict[str, str | int]:
+    span = mock.MagicMock()
+    _set_bootstrap_servers_attributes(span, bootstrap_servers)
+    return {call.args[0]: call.args[1] for call in span.set_attribute.call_args_list}
+
+
+class TestSetBootstrapServersAttributes(TestCase):
+    """``bootstrap_servers`` is a ``host:port`` entry, a comma-separated string
+    of them, or a list of them, so ``server.address`` and ``server.port`` have
+    to be parsed out of it rather than copied from it."""
+
+    def test_list_entry_splits_into_host_and_port(self) -> None:
+        self.assertEqual(
+            recorded_server_attributes(["kafka-1:9092", "kafka-2:9092"]),
+            {
+                server_attributes.SERVER_ADDRESS: "kafka-1",
+                server_attributes.SERVER_PORT: 9092,
+            },
+        )
+
+    def test_comma_separated_string_uses_the_first_entry(self) -> None:
+        self.assertEqual(
+            recorded_server_attributes("kafka-1:9092,kafka-2:9092"),
+            {
+                server_attributes.SERVER_ADDRESS: "kafka-1",
+                server_attributes.SERVER_PORT: 9092,
+            },
+        )
+
+    def test_bare_host_omits_the_port(self) -> None:
+        """``localhost`` is kafka-python's own default for ``bootstrap_servers``."""
+        self.assertEqual(
+            recorded_server_attributes("localhost"),
+            {server_attributes.SERVER_ADDRESS: "localhost"},
+        )
+
+    def test_security_protocol_prefix_is_stripped(self) -> None:
+        self.assertEqual(
+            recorded_server_attributes("SASL_SSL://broker:9093"),
+            {
+                server_attributes.SERVER_ADDRESS: "broker",
+                server_attributes.SERVER_PORT: 9093,
+            },
+        )
+
+    def test_bracketed_ipv6_literal_with_a_port(self) -> None:
+        self.assertEqual(
+            recorded_server_attributes("[::1]:9092"),
+            {
+                server_attributes.SERVER_ADDRESS: "::1",
+                server_attributes.SERVER_PORT: 9092,
+            },
+        )
+
+    def test_bracketed_ipv6_literal_without_a_port(self) -> None:
+        self.assertEqual(
+            recorded_server_attributes("[::1]"),
+            {server_attributes.SERVER_ADDRESS: "::1"},
+        )
+
+    def test_bare_ipv6_literal_is_not_split_on_its_last_colon(self) -> None:
+        self.assertEqual(
+            recorded_server_attributes("::1"),
+            {server_attributes.SERVER_ADDRESS: "::1"},
+        )
+
+    def test_non_numeric_port_is_omitted_rather_than_emitted(self) -> None:
+        self.assertEqual(
+            recorded_server_attributes("broker:not-a-port"),
+            {server_attributes.SERVER_ADDRESS: "broker"},
+        )
+
+    def test_empty_values_record_nothing(self) -> None:
+        for bootstrap_servers in (None, "", [], [""], ","):
+            with self.subTest(bootstrap_servers=bootstrap_servers):
+                self.assertEqual(recorded_server_attributes(bootstrap_servers), {})

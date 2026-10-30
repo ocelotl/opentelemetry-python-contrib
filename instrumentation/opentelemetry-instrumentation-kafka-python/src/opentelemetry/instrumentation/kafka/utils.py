@@ -4,17 +4,27 @@
 import json
 from collections.abc import Callable
 from logging import getLogger
+from re import compile as re_compile
+from socket import AF_INET6, inet_pton
 
 from kafka.record.abc import ABCRecord
 
 from opentelemetry import context, propagate, trace
+from opentelemetry.instrumentation._semconv import (
+    _report_new,
+    _report_old,
+    _StabilityMode,
+)
 from opentelemetry.propagators import textmap
 from opentelemetry.semconv._incubating.attributes import messaging_attributes
+from opentelemetry.semconv.attributes import server_attributes
 from opentelemetry.semconv.trace import SpanAttributes
 from opentelemetry.trace import Tracer
 from opentelemetry.trace.span import Span
 
 _LOG = getLogger(__name__)
+
+_SECURITY_PROTOCOL_PREFIX = re_compile("^.*://")
 
 
 class KafkaPropertiesExtractor:
@@ -88,25 +98,99 @@ _kafka_getter = KafkaContextGetter()
 _kafka_setter = KafkaContextSetter()
 
 
+def _set_bootstrap_servers_attributes(span: Span, bootstrap_servers: str | list[str] | None) -> None:
+    """Populate ``server.address`` and ``server.port`` from kafka-python's
+    ``bootstrap_servers``.
+
+    The value is one ``host:port`` entry, a comma-separated string of them, or
+    a list of them, and each entry may carry a leading security protocol as in
+    ``SASL_SSL://broker:9093``. Only the first entry is recorded, the way
+    ``opentelemetry-instrumentation-confluent-kafka`` records it. An entry
+    carrying no port leaves ``server.port`` unset rather than assuming 9092,
+    so the span reports what was configured.
+    """
+    if not bootstrap_servers:
+        return
+
+    entries = bootstrap_servers.split(",") if isinstance(bootstrap_servers, str) else bootstrap_servers
+
+    entry = ""
+    for candidate in entries:
+        entry = _SECURITY_PROTOCOL_PREFIX.sub("", str(candidate).strip())
+        if entry:
+            break
+
+    if not entry:
+        return
+
+    if entry.startswith("["):
+        host, _, rest = entry[1:].partition("]")
+        port = rest[1:] if rest.startswith(":") else ""
+    elif ":" not in entry:
+        host, port = entry, ""
+    else:
+        try:
+            inet_pton(AF_INET6, entry)
+        except (OSError, ValueError):
+            host, _, port = entry.rpartition(":")
+        else:
+            host, port = entry, ""
+
+    if not host:
+        return
+
+    span.set_attribute(server_attributes.SERVER_ADDRESS, host)
+    if port.isdecimal():
+        span.set_attribute(server_attributes.SERVER_PORT, int(port))
+    elif port:
+        _LOG.debug("non-numeric port in bootstrap_servers: %r", port)
+
+
 def _enrich_span(
-    span,
-    bootstrap_servers: list[str],
+    span: Span,
+    bootstrap_servers: str | list[str] | None,
     topic: str,
     partition: int | None,
-):
-    if span.is_recording():
-        span.set_attribute(messaging_attributes.MESSAGING_SYSTEM, "kafka")
+    operation: messaging_attributes.MessagingOperationTypeValues,
+    sem_conv_opt_in_mode: _StabilityMode,
+) -> None:
+    if not span.is_recording():
+        return
+
+    span.set_attribute(
+        messaging_attributes.MESSAGING_SYSTEM,
+        messaging_attributes.MessagingSystemValues.KAFKA.value,
+    )
+
+    if _report_old(sem_conv_opt_in_mode):
         span.set_attribute(SpanAttributes.MESSAGING_DESTINATION, topic)
         if partition is not None:
             span.set_attribute(SpanAttributes.MESSAGING_KAFKA_PARTITION, partition)
         span.set_attribute(SpanAttributes.MESSAGING_URL, json.dumps(bootstrap_servers))
+
+    if _report_new(sem_conv_opt_in_mode):
+        span.set_attribute(messaging_attributes.MESSAGING_DESTINATION_NAME, topic)
+        if partition is not None:
+            span.set_attribute(
+                messaging_attributes.MESSAGING_DESTINATION_PARTITION_ID,
+                str(partition),
+            )
+        _set_bootstrap_servers_attributes(span, bootstrap_servers)
+        span.set_attribute(messaging_attributes.MESSAGING_OPERATION_NAME, operation.value)
+        span.set_attribute(messaging_attributes.MESSAGING_OPERATION_TYPE, operation.value)
 
 
 def _get_span_name(operation: str, topic: str):
     return f"{topic} {operation}"
 
 
-def _wrap_send(tracer: Tracer, produce_hook: ProduceHookT) -> Callable:
+def _wrap_send(
+    tracer: Tracer,
+    produce_hook: ProduceHookT,
+    sem_conv_opt_in_mode: _StabilityMode,
+) -> Callable:
+    operation = messaging_attributes.MessagingOperationTypeValues.SEND
+
     def _traced_send(func, instance, args, kwargs):
         headers = KafkaPropertiesExtractor.extract_send_headers(args, kwargs)
         if headers is None:
@@ -115,7 +199,7 @@ def _wrap_send(tracer: Tracer, produce_hook: ProduceHookT) -> Callable:
 
         topic = KafkaPropertiesExtractor.extract_send_topic(args, kwargs)
         bootstrap_servers = KafkaPropertiesExtractor.extract_bootstrap_servers(instance)
-        span_name = _get_span_name("send", topic)
+        span_name = _get_span_name(operation.value, topic)
         with tracer.start_as_current_span(span_name, kind=trace.SpanKind.PRODUCER) as span:
             propagate.inject(
                 headers,
@@ -130,7 +214,14 @@ def _wrap_send(tracer: Tracer, produce_hook: ProduceHookT) -> Callable:
 
             future = func(*args, **kwargs)
             partition = KafkaPropertiesExtractor.extract_send_partition(future)
-            _enrich_span(span, bootstrap_servers, topic, partition)
+            _enrich_span(
+                span,
+                bootstrap_servers,
+                topic,
+                partition,
+                operation,
+                sem_conv_opt_in_mode,
+            )
             return future
 
     return _traced_send
@@ -144,8 +235,10 @@ def _create_consumer_span(
     bootstrap_servers,
     args,
     kwargs,
+    sem_conv_opt_in_mode: _StabilityMode,
 ):
-    span_name = _get_span_name("receive", record.topic)
+    operation = messaging_attributes.MessagingOperationTypeValues.RECEIVE
+    span_name = _get_span_name(operation.value, record.topic)
     with tracer.start_as_current_span(
         span_name,
         context=extracted_context,
@@ -153,7 +246,14 @@ def _create_consumer_span(
     ) as span:
         new_context = trace.set_span_in_context(span, extracted_context)
         token = context.attach(new_context)
-        _enrich_span(span, bootstrap_servers, record.topic, record.partition)
+        _enrich_span(
+            span,
+            bootstrap_servers,
+            record.topic,
+            record.partition,
+            operation,
+            sem_conv_opt_in_mode,
+        )
         try:
             if callable(consume_hook):
                 consume_hook(span, record, args, kwargs)
@@ -166,6 +266,7 @@ def _create_consumer_span(
 def _wrap_next(
     tracer: Tracer,
     consume_hook: ConsumeHookT,
+    sem_conv_opt_in_mode: _StabilityMode,
 ) -> Callable:
     def _traced_next(func, instance, args, kwargs):
         record = func(*args, **kwargs)
@@ -182,6 +283,7 @@ def _wrap_next(
                 bootstrap_servers,
                 args,
                 kwargs,
+                sem_conv_opt_in_mode,
             )
         return record
 
