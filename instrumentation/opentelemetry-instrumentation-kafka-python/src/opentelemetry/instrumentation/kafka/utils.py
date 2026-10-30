@@ -153,13 +153,14 @@ def _create_consumer_span(
     ) as span:
         new_context = trace.set_span_in_context(span, extracted_context)
         token = context.attach(new_context)
-        _enrich_span(span, bootstrap_servers, record.topic, record.partition)
         try:
-            if callable(consume_hook):
-                consume_hook(span, record, args, kwargs)
-        except Exception as hook_exception:  # pylint: disable=W0703
-            _LOG.exception(hook_exception)
-        if token:
+            _enrich_span(span, bootstrap_servers, record.topic, record.partition)
+            try:
+                if callable(consume_hook):
+                    consume_hook(span, record, args, kwargs)
+            except Exception as hook_exception:  # pylint: disable=W0703
+                _LOG.exception(hook_exception)
+        finally:
             context.detach(token)
 
 
