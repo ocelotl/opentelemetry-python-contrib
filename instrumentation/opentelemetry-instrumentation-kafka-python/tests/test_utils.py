@@ -281,7 +281,7 @@ class TestUtils(TestCase):
         recorded_attributes = {call.args[0] for call in span.set_attribute.call_args_list}
         self.assertNotIn(SpanAttributes.MESSAGING_KAFKA_PARTITION, recorded_attributes)
 
-    def test_enrich_span_omits_partition_when_none_in_messaging_mode(self):
+    def test_enrich_span_omits_partition_when_none_in_messaging_mode(self) -> None:
         span = mock.MagicMock()
         span.is_recording.return_value = True
 
@@ -370,7 +370,7 @@ class TestSetBootstrapServersAttributes(TestCase):
     of them, or a list of them, so ``server.address`` and ``server.port`` have
     to be parsed out of it rather than copied from it."""
 
-    def test_list_entry_splits_into_host_and_port(self):
+    def test_list_entry_splits_into_host_and_port(self) -> None:
         self.assertEqual(
             recorded_server_attributes(["kafka-1:9092", "kafka-2:9092"]),
             {
@@ -379,7 +379,7 @@ class TestSetBootstrapServersAttributes(TestCase):
             },
         )
 
-    def test_comma_separated_string_uses_the_first_entry(self):
+    def test_comma_separated_string_uses_the_first_entry(self) -> None:
         self.assertEqual(
             recorded_server_attributes("kafka-1:9092,kafka-2:9092"),
             {
@@ -388,14 +388,14 @@ class TestSetBootstrapServersAttributes(TestCase):
             },
         )
 
-    def test_bare_host_omits_the_port(self):
+    def test_bare_host_omits_the_port(self) -> None:
         """``localhost`` is kafka-python's own default for ``bootstrap_servers``."""
         self.assertEqual(
             recorded_server_attributes("localhost"),
             {server_attributes.SERVER_ADDRESS: "localhost"},
         )
 
-    def test_security_protocol_prefix_is_stripped(self):
+    def test_security_protocol_prefix_is_stripped(self) -> None:
         self.assertEqual(
             recorded_server_attributes("SASL_SSL://broker:9093"),
             {
@@ -404,7 +404,7 @@ class TestSetBootstrapServersAttributes(TestCase):
             },
         )
 
-    def test_bracketed_ipv6_literal_with_a_port(self):
+    def test_bracketed_ipv6_literal_with_a_port(self) -> None:
         self.assertEqual(
             recorded_server_attributes("[::1]:9092"),
             {
@@ -413,25 +413,25 @@ class TestSetBootstrapServersAttributes(TestCase):
             },
         )
 
-    def test_bracketed_ipv6_literal_without_a_port(self):
+    def test_bracketed_ipv6_literal_without_a_port(self) -> None:
         self.assertEqual(
             recorded_server_attributes("[::1]"),
             {server_attributes.SERVER_ADDRESS: "::1"},
         )
 
-    def test_bare_ipv6_literal_is_not_split_on_its_last_colon(self):
+    def test_bare_ipv6_literal_is_not_split_on_its_last_colon(self) -> None:
         self.assertEqual(
             recorded_server_attributes("::1"),
             {server_attributes.SERVER_ADDRESS: "::1"},
         )
 
-    def test_non_numeric_port_is_omitted_rather_than_emitted(self):
+    def test_non_numeric_port_is_omitted_rather_than_emitted(self) -> None:
         self.assertEqual(
             recorded_server_attributes("broker:not-a-port"),
             {server_attributes.SERVER_ADDRESS: "broker"},
         )
 
-    def test_empty_values_record_nothing(self):
+    def test_empty_values_record_nothing(self) -> None:
         for bootstrap_servers in (None, "", [], [""], ","):
             with self.subTest(bootstrap_servers=bootstrap_servers):
                 self.assertEqual(recorded_server_attributes(bootstrap_servers), {})
