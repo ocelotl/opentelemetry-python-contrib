@@ -513,7 +513,7 @@ def _wrapped_teardown_request(
     excluded_urls=None,
 ):
     def _teardown_request(exc):
-        # pylint: disable=unnecessary-dunder-call
+        # pylint: disable=unnecessary-dunder-call,too-many-branches
         if excluded_urls and excluded_urls.url_disabled(flask.request.url):
             return
 
