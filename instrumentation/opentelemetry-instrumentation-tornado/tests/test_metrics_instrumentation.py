@@ -4,6 +4,8 @@
 
 import asyncio
 import platform
+from gc import get_stats, isenabled
+from logging import getLogger
 from timeit import default_timer
 from unittest.mock import patch
 
@@ -193,9 +195,13 @@ class TestTornadoMetricsInstrumentation(TornadoTest):
         """
         Test that metrics can handle concurrent requests and calculate in an async-safe way.
         """
+        probe_gc_before = get_stats()
+        probe_start = default_timer()
         req1 = self.http_client.fetch(self.get_url("/slow?duration=1.0"))
         req2 = self.http_client.fetch(self.get_url("/async"))
         await asyncio.gather(req1, req2)
+        probe_wall = default_timer() - probe_start
+        probe_gc_after = get_stats()
 
         metrics = self.get_sorted_metrics(SCOPE)
         self.assertEqual(len(metrics), 7)
@@ -218,6 +224,23 @@ class TestTornadoMetricsInstrumentation(TornadoTest):
         )
         req2_server_duration_data_point = next(
             dp for dp in server_duration.data.data_points if "/async" in dp.attributes.get("http.target")
+        )
+
+        getLogger("tornado_probe").warning(
+            "PROBE impl=%s py=%s wall=%.6f gc_enabled=%s gc_collections=%s "
+            "req1_server_ms=%r req1_client_s=%r req1_delta=%.6f "
+            "req2_server_ms=%r req2_client_s=%r req2_delta=%.6f",
+            platform.python_implementation(),
+            platform.python_version(),
+            probe_wall,
+            isenabled(),
+            [after["collections"] - before["collections"] for before, after in zip(probe_gc_before, probe_gc_after)],
+            req1_server_duration_data_point.sum,
+            req1_client_duration_data_point.sum,
+            abs(req1_server_duration_data_point.sum / 1000.0 - req1_client_duration_data_point.sum),
+            req2_server_duration_data_point.sum,
+            req2_client_duration_data_point.sum,
+            abs(req2_server_duration_data_point.sum / 1000.0 - req2_client_duration_data_point.sum),
         )
 
         # Server and client durations should be similar (adjusting for msecs vs secs)
