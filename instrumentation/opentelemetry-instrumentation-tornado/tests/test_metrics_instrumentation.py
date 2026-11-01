@@ -4,6 +4,7 @@
 
 import asyncio
 import platform
+from logging import getLogger
 from timeit import default_timer
 from unittest.mock import patch
 
@@ -218,6 +219,15 @@ class TestTornadoMetricsInstrumentation(TornadoTest):
         )
         req2_server_duration_data_point = next(
             dp for dp in server_duration.data.data_points if "/async" in dp.attributes.get("http.target")
+        )
+
+        getLogger("tornado_probe").warning(
+            "PROBE2 py=%s req1_server_ms=%r req1_client_s=%r req1_delta=%.6f req2_delta=%.6f",
+            platform.python_version(),
+            req1_server_duration_data_point.sum,
+            req1_client_duration_data_point.sum,
+            abs(req1_server_duration_data_point.sum / 1000.0 - req1_client_duration_data_point.sum),
+            abs(req2_server_duration_data_point.sum / 1000.0 - req2_client_duration_data_point.sum),
         )
 
         # Server and client durations should be similar (adjusting for msecs vs secs)
