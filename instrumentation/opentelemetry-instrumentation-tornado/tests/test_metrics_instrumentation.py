@@ -230,6 +230,7 @@ class TestTornadoMetricsInstrumentation(TornadoTest):
             abs(req1_server_duration_data_point.sum / 1000.0 - req1_client_duration_data_point.sum),
             0.0,
             delta=metrics_delta(0.01),
+            msg=f"server_ms={req1_server_duration_data_point.sum!r} client_s={req1_client_duration_data_point.sum!r}",
         )
         self.assertAlmostEqual(
             abs(req2_server_duration_data_point.sum / 1000.0 - req2_client_duration_data_point.sum),
