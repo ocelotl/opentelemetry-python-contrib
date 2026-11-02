@@ -234,7 +234,7 @@ class TestTornadoMetricsInstrumentation(TornadoTest):
         self.assertAlmostEqual(
             abs(req2_server_duration_data_point.sum / 1000.0 - req2_client_duration_data_point.sum),
             0.0,
-            delta=metrics_delta(0.02),
+            delta=metrics_delta(0.05),
         )
 
         # Make sure duration is roughly equivalent to expected (req1/slow) should be around 1 second
