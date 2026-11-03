@@ -380,3 +380,9 @@ class Boto3SQSInstrumentor(BaseInstrumentor):
 
         for client_cls in botocore.client.BaseClient.__subclasses__():
             self._un_decorate_sqs(client_cls)
+
+        if Boto3SQSInstrumentor.current_context_token:
+            context.detach(Boto3SQSInstrumentor.current_context_token)
+        Boto3SQSInstrumentor.current_context_token = None
+        Boto3SQSInstrumentor.current_span_related_to_token = None
+        Boto3SQSInstrumentor.received_messages_spans.clear()
