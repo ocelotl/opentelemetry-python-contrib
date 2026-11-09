@@ -419,6 +419,27 @@ class TestBoto3SQSInstrumentation(TestBase):
             spans = self.get_finished_spans()
             self.assertEqual(0, len(spans))
 
+    def test_uninstrument_releases_received_message_state(self) -> None:
+        with self._mocked_endpoint({"Messages": [self._make_message("1", "hello", "01")]}):
+            response = self._client.receive_message(QueueUrl=self._queue_url)
+
+        for _ in response["Messages"]:
+            pass
+
+        self.assertEqual({"01"}, set(Boto3SQSInstrumentor.received_messages_spans))
+        self.assertIsNotNone(Boto3SQSInstrumentor.current_context_token)
+
+        Boto3SQSInstrumentor().uninstrument()
+
+        self.assertEqual({}, Boto3SQSInstrumentor.received_messages_spans)
+        self.assertIsNone(Boto3SQSInstrumentor.current_context_token)
+        self.assertIsNone(Boto3SQSInstrumentor.current_span_related_to_token)
+
+        self.memory_exporter.clear()
+        with self.tracer_provider.get_tracer(__name__).start_as_current_span("after-uninstrument"):
+            pass
+        self.assertIsNone(self._get_only_span().parent)
+
     def test_delete_message_batch_without_entries(self):
         # botocore reports the missing parameter; the wrapper must not fail first
         with self._mocked_endpoint({"Successful": [], "Failed": []}):
