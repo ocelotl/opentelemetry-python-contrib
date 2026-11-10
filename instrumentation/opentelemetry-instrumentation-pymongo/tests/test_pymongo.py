@@ -25,9 +25,14 @@ from opentelemetry.semconv._incubating.attributes.net_attributes import (
     NET_PEER_NAME,
     NET_PEER_PORT,
 )
+from opentelemetry.semconv._incubating.metrics.db_metrics import (
+    DB_CLIENT_OPERATION_DURATION,
+    create_db_client_operation_duration,
+)
 from opentelemetry.semconv.attributes.db_attributes import (
     DB_COLLECTION_NAME,
     DB_NAMESPACE,
+    DB_OPERATION_NAME,
     DB_QUERY_TEXT,
     DB_SYSTEM_NAME,
 )
@@ -466,12 +471,13 @@ class MockCommand:
 
 
 class MockEvent:
-    def __init__(self, command_attrs, connection_id=None, request_id=""):
+    def __init__(self, command_attrs, connection_id=None, request_id="", duration_micros=1000):
         self.command = MockCommand(command_attrs)
         self.command_name = self.command.get("command_name")
         self.connection_id = connection_id
         self.request_id = request_id
         self.failure = None
+        self.duration_micros = duration_micros
 
     def mark_as_failed(self):
         # CommandFailedEvent.failure is type _DocumentOut, which pymongo defines as:
@@ -484,3 +490,153 @@ class MockEvent:
 
     def __getattr__(self, item):
         return item
+
+
+class TestPymongoOperationDuration(TestBase):
+    """Tests for the db.client.operation.duration histogram."""
+
+    def setUp(self):
+        super().setUp()
+        _OpenTelemetrySemanticConventionStability._initialized = False
+        self.tracer = self.tracer_provider.get_tracer(__name__)
+
+    def tearDown(self):
+        super().tearDown()
+        _OpenTelemetrySemanticConventionStability._initialized = False
+
+    def _command_tracer(self, semconv_opt_in_mode=_StabilityMode.DEFAULT):
+        meter = self.meter_provider.get_meter(__name__)
+        return CommandTracer(
+            self.tracer,
+            create_db_client_operation_duration(meter),
+            semconv_opt_in_mode=semconv_opt_in_mode,
+        )
+
+    def _duration_points(self):
+        metrics = [metric for metric in self.get_sorted_metrics() if metric.name == DB_CLIENT_OPERATION_DURATION]
+        self.assertEqual(len(metrics), 1)
+        self.assertEqual(metrics[0].unit, "s")
+        return list(metrics[0].data.data_points)
+
+    @staticmethod
+    def _event(duration_micros=2500):
+        return MockEvent(
+            {"command_name": "find", "find": "test_collection"},
+            ("testhost", 27017),
+            "request_id",
+            duration_micros=duration_micros,
+        )
+
+    def test_duration_recorded_on_a_succeeded_command(self):
+        command_tracer = self._command_tracer()
+        event = self._event()
+        command_tracer.started(event=event)
+        command_tracer.succeeded(event=event)
+
+        points = self._duration_points()
+        self.assertEqual(len(points), 1)
+        self.assertEqual(points[0].count, 1)
+
+        attributes = dict(points[0].attributes)
+        self.assertEqual(
+            attributes,
+            {
+                DB_SYSTEM_NAME: "mongodb",
+                DB_OPERATION_NAME: "find",
+                DB_NAMESPACE: "database_name",
+                SERVER_ADDRESS: "testhost",
+                SERVER_PORT: 27017,
+            },
+        )
+        self.assertIs(type(attributes[SERVER_PORT]), int)
+        for key in (DB_SYSTEM_NAME, DB_OPERATION_NAME, DB_NAMESPACE, SERVER_ADDRESS):
+            self.assertIs(type(attributes[key]), str)
+
+    def test_the_recorded_value_is_what_pymongo_measured_in_seconds(self):
+        command_tracer = self._command_tracer()
+        event = self._event(duration_micros=2500)
+        command_tracer.started(event=event)
+        command_tracer.succeeded(event=event)
+
+        self.assertAlmostEqual(self._duration_points()[0].sum, 0.0025)
+
+    def test_duration_recorded_with_error_type_on_a_failed_command(self):
+        command_tracer = self._command_tracer()
+        event = self._event()
+        command_tracer.started(event=event)
+        event.failure = {
+            "errmsg": "operation failed",
+            "codeName": "OperationFailed",
+        }
+        command_tracer.failed(event=event)
+
+        points = self._duration_points()
+        self.assertEqual(len(points), 1)
+        attributes = dict(points[0].attributes)
+        self.assertEqual(attributes[ERROR_TYPE], "OperationFailed")
+        self.assertIs(type(attributes[ERROR_TYPE]), str)
+
+    def test_error_type_agrees_with_the_span_in_new_semconv(self):
+        command_tracer = self._command_tracer(_StabilityMode.DATABASE)
+        event = self._event()
+        command_tracer.started(event=event)
+        event.failure = {
+            "errmsg": "operation failed",
+            "codeName": "OperationFailed",
+        }
+        command_tracer.failed(event=event)
+
+        span = self.memory_exporter.get_finished_spans()[0]
+        self.assertEqual(span.attributes[ERROR_TYPE], "OperationFailed")
+        self.assertEqual(dict(self._duration_points()[0].attributes)[ERROR_TYPE], "OperationFailed")
+
+    def test_error_type_is_recorded_even_when_the_span_omits_it(self):
+        command_tracer = self._command_tracer(_StabilityMode.DEFAULT)
+        event = self._event()
+        command_tracer.started(event=event)
+        event.failure = {
+            "errmsg": "operation failed",
+            "codeName": "OperationFailed",
+        }
+        command_tracer.failed(event=event)
+
+        span = self.memory_exporter.get_finished_spans()[0]
+        self.assertNotIn(ERROR_TYPE, span.attributes)
+        self.assertEqual(dict(self._duration_points()[0].attributes)[ERROR_TYPE], "OperationFailed")
+
+    def test_an_unnamed_failure_code_is_recorded_as_unknown(self):
+        command_tracer = self._command_tracer()
+        event = self._event()
+        command_tracer.started(event=event)
+        event.mark_as_failed()
+        command_tracer.failed(event=event)
+
+        self.assertEqual(
+            dict(self._duration_points()[0].attributes)[ERROR_TYPE],
+            "UnknownError",
+        )
+
+    def test_nothing_recorded_for_a_command_that_never_started(self):
+        command_tracer = self._command_tracer()
+        command_tracer.succeeded(event=self._event())
+
+        self.assertEqual(self.get_sorted_metrics(), [])
+
+    def test_nothing_recorded_while_instrumentation_is_suppressed(self):
+        command_tracer = self._command_tracer()
+        event = self._event()
+        with suppress_instrumentation():
+            command_tracer.started(event=event)
+            command_tracer.succeeded(event=event)
+
+        self.assertEqual(self.get_sorted_metrics(), [])
+
+    def test_server_attributes_absent_without_a_connection_id(self):
+        command_tracer = self._command_tracer()
+        event = MockEvent({"command_name": "find"}, None, "request_id")
+        command_tracer.started(event=event)
+        command_tracer.succeeded(event=event)
+
+        attributes = dict(self._duration_points()[0].attributes)
+        self.assertNotIn(SERVER_ADDRESS, attributes)
+        self.assertNotIn(SERVER_PORT, attributes)

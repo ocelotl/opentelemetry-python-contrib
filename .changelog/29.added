@@ -1,0 +1,1 @@
+`opentelemetry-instrumentation-asyncpg`, `opentelemetry-instrumentation-pymemcache`, `opentelemetry-instrumentation-pymongo`, `opentelemetry-instrumentation-redis` and `opentelemetry-instrumentation-tortoiseorm`: record the `db.client.operation.duration` metric

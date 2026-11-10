@@ -166,10 +166,12 @@ from wrapt import wrap_function_wrapper
 
 from opentelemetry import trace
 from opentelemetry.instrumentation._semconv import (
+    _db_client_operation_duration_attributes,
     _get_schema_url_for_signal_types,
     _get_semconv_opt_in_modes,
     _OpenTelemetrySemanticConventionStability,
     _OpenTelemetryStabilitySignalType,
+    _record_db_client_operation_duration,
     _set_db_statement,
 )
 from opentelemetry.instrumentation.instrumentor import BaseInstrumentor
@@ -187,6 +189,14 @@ from opentelemetry.instrumentation.utils import (
     is_instrumentation_enabled,
     unwrap,
 )
+from opentelemetry.metrics import Histogram, MeterProvider, get_meter
+from opentelemetry.semconv._incubating.attributes.db_attributes import (
+    DbSystemNameValues,
+)
+from opentelemetry.semconv._incubating.metrics.db_metrics import (
+    create_db_client_operation_duration,
+)
+from opentelemetry.semconv.schemas import Schemas
 from opentelemetry.trace import (
     StatusCode,
     Tracer,
@@ -240,8 +250,32 @@ def _execute_hook(hook: Callable[..., None], *args: Any) -> None:
         _logger.warning("Exception raised by hook %r", hook, exc_info=True)
 
 
+def _db_client_operation_duration_attributes_for(
+    instance: RedisInstance | AsyncRedisInstance | PipelineInstance | AsyncPipelineInstance,
+    operation_name: str | None,
+) -> dict[str, Any]:
+    """Get the db.client.operation.duration attributes a redis client can supply.
+
+    ``operation_name`` is left as None for a pipeline, which carries more than
+    one command and so has no single operation to name.
+    """
+    connection_kwargs = getattr(getattr(instance, "connection_pool", None), "connection_kwargs", None)
+    if not connection_kwargs:
+        return _db_client_operation_duration_attributes(DbSystemNameValues.REDIS.value, operation_name=operation_name)
+    path = connection_kwargs.get("path")
+    database_index = connection_kwargs.get("db")
+    return _db_client_operation_duration_attributes(
+        DbSystemNameValues.REDIS.value,
+        operation_name=operation_name,
+        namespace=str(database_index if database_index is not None else 0),
+        server_address=path or connection_kwargs.get("host", "localhost"),
+        server_port=None if path else connection_kwargs.get("port", 6379),
+    )
+
+
 def _traced_execute_factory(
     tracer: Tracer,
+    duration_histogram: Histogram,
     request_hook: RequestHook | None = None,
     response_hook: ResponseHook | None = None,
 ):
@@ -284,7 +318,11 @@ def _traced_execute_factory(
                     _add_create_attributes(span, args)
             if callable(request_hook):
                 _execute_hook(request_hook, span, instance, args, kwargs)
-            response = func(*args, **kwargs)
+            metric_attributes = _db_client_operation_duration_attributes_for(
+                instance, str(args[0]) if args and args[0] else None
+            )
+            with _record_db_client_operation_duration(duration_histogram, metric_attributes):
+                response = func(*args, **kwargs)
             if span.is_recording():
                 if span.name == "redis.search":
                     _add_search_attributes(span, response, args)
@@ -297,6 +335,7 @@ def _traced_execute_factory(
 
 def _traced_execute_pipeline_factory(
     tracer: Tracer,
+    duration_histogram: Histogram,
     request_hook: RequestHook | None = None,
     response_hook: ResponseHook | None = None,
 ):
@@ -341,11 +380,13 @@ def _traced_execute_pipeline_factory(
                 )
 
             response = None
-            try:
-                response = func(*args, **kwargs)
-            except redis.WatchError as watch_exception:
-                span.set_status(StatusCode.UNSET)
-                exception = watch_exception
+            metric_attributes = _db_client_operation_duration_attributes_for(instance, None)
+            with _record_db_client_operation_duration(duration_histogram, metric_attributes):
+                try:
+                    response = func(*args, **kwargs)
+                except redis.WatchError as watch_exception:
+                    span.set_status(StatusCode.UNSET)
+                    exception = watch_exception
 
             if callable(response_hook):
                 _execute_hook(response_hook, span, instance, response)
@@ -360,6 +401,7 @@ def _traced_execute_pipeline_factory(
 
 def _async_traced_execute_factory(
     tracer: Tracer,
+    duration_histogram: Histogram,
     request_hook: RequestHook | None = None,
     response_hook: ResponseHook | None = None,
 ):
@@ -401,7 +443,11 @@ def _async_traced_execute_factory(
                 )
             if callable(request_hook):
                 _execute_hook(request_hook, span, instance, args, kwargs)
-            response = await func(*args, **kwargs)
+            metric_attributes = _db_client_operation_duration_attributes_for(
+                instance, str(args[0]) if args and args[0] else None
+            )
+            with _record_db_client_operation_duration(duration_histogram, metric_attributes):
+                response = await func(*args, **kwargs)
             if callable(response_hook):
                 _execute_hook(response_hook, span, instance, response)
             return response
@@ -411,6 +457,7 @@ def _async_traced_execute_factory(
 
 def _async_traced_execute_pipeline_factory(
     tracer: Tracer,
+    duration_histogram: Histogram,
     request_hook: RequestHook | None = None,
     response_hook: ResponseHook | None = None,
 ):
@@ -457,11 +504,13 @@ def _async_traced_execute_pipeline_factory(
                 )
 
             response = None
-            try:
-                response = await func(*args, **kwargs)
-            except redis.WatchError as watch_exception:
-                span.set_status(StatusCode.UNSET)
-                exception = watch_exception
+            metric_attributes = _db_client_operation_duration_attributes_for(instance, None)
+            with _record_db_client_operation_duration(duration_histogram, metric_attributes):
+                try:
+                    response = await func(*args, **kwargs)
+                except redis.WatchError as watch_exception:
+                    span.set_status(StatusCode.UNSET)
+                    exception = watch_exception
 
             if callable(response_hook):
                 _execute_hook(response_hook, span, instance, response)
@@ -477,11 +526,12 @@ def _async_traced_execute_pipeline_factory(
 # pylint: disable=R0915
 def _instrument(
     tracer: Tracer,
+    duration_histogram: Histogram,
     request_hook: RequestHook | None = None,
     response_hook: ResponseHook | None = None,
 ):
-    _traced_execute_command = _traced_execute_factory(tracer, request_hook, response_hook)
-    _traced_execute_pipeline = _traced_execute_pipeline_factory(tracer, request_hook, response_hook)
+    _traced_execute_command = _traced_execute_factory(tracer, duration_histogram, request_hook, response_hook)
+    _traced_execute_pipeline = _traced_execute_pipeline_factory(tracer, duration_histogram, request_hook, response_hook)
     pipeline_class = "BasePipeline" if _CLIENT_BEFORE_V3 else "Pipeline"
     redis_class = "StrictRedis" if _CLIENT_BEFORE_V3 else "Redis"
 
@@ -508,8 +558,12 @@ def _instrument(
             _traced_execute_pipeline,
         )
 
-    _async_traced_execute_command = _async_traced_execute_factory(tracer, request_hook, response_hook)
-    _async_traced_execute_pipeline = _async_traced_execute_pipeline_factory(tracer, request_hook, response_hook)
+    _async_traced_execute_command = _async_traced_execute_factory(
+        tracer, duration_histogram, request_hook, response_hook
+    )
+    _async_traced_execute_pipeline = _async_traced_execute_pipeline_factory(
+        tracer, duration_histogram, request_hook, response_hook
+    )
     if _CLIENT_ASYNCIO_SUPPORT:
         wrap_function_wrapper(
             "redis.asyncio",
@@ -542,12 +596,15 @@ def _instrument(
 def _instrument_client(
     client,
     tracer: Tracer,
+    duration_histogram: Histogram,
     request_hook: RequestHook | None = None,
     response_hook: ResponseHook | None = None,
 ):
     # first, handle async clients and cluster clients
-    _async_traced_execute = _async_traced_execute_factory(tracer, request_hook, response_hook)
-    _async_traced_execute_pipeline = _async_traced_execute_pipeline_factory(tracer, request_hook, response_hook)
+    _async_traced_execute = _async_traced_execute_factory(tracer, duration_histogram, request_hook, response_hook)
+    _async_traced_execute_pipeline = _async_traced_execute_pipeline_factory(
+        tracer, duration_histogram, request_hook, response_hook
+    )
 
     if _CLIENT_ASYNCIO_SUPPORT and isinstance(client, redis.asyncio.Redis):
 
@@ -573,8 +630,8 @@ def _instrument_client(
         return
     # for redis.client.Redis, redis.Cluster and v3.0.0 redis.client.StrictRedis
     # the wrappers are the same
-    _traced_execute = _traced_execute_factory(tracer, request_hook, response_hook)
-    _traced_execute_pipeline = _traced_execute_pipeline_factory(tracer, request_hook, response_hook)
+    _traced_execute = _traced_execute_factory(tracer, duration_histogram, request_hook, response_hook)
+    _traced_execute_pipeline = _traced_execute_pipeline_factory(tracer, duration_histogram, request_hook, response_hook)
 
     def _pipeline_wrapper(func, instance, args, kwargs):
         result = func(*args, **kwargs)
@@ -613,6 +670,16 @@ class RedisInstrumentor(BaseInstrumentor):
             schema_url=_get_schema_url_for_signal_types(signal_types),
         )
 
+    @staticmethod
+    def _get_duration_histogram(**kwargs) -> Histogram:
+        meter = get_meter(
+            __name__,
+            __version__,
+            kwargs.get("meter_provider"),
+            schema_url=Schemas.V1_33_0.value,
+        )
+        return create_db_client_operation_duration(meter)
+
     def instrument(
         self,
         tracer_provider: TracerProvider | None = None,
@@ -624,6 +691,7 @@ class RedisInstrumentor(BaseInstrumentor):
 
         Args:
             tracer_provider: A TracerProvider, defaults to global.
+            meter_provider: A MeterProvider, defaults to global.
             request_hook:
                 a function with extra user-defined logic to run before performing the request.
 
@@ -652,11 +720,13 @@ class RedisInstrumentor(BaseInstrumentor):
         Args:
             **kwargs: Optional arguments
                 ``tracer_provider``: a TracerProvider, defaults to global.
+                ``meter_provider``: a MeterProvider, defaults to global.
                 ``request_hook``: An optional callback that is invoked right after a span is created.
                 ``response_hook``: An optional callback which is invoked right before the span is finished processing a response.
         """
         _instrument(
             self._get_tracer(**kwargs),
+            self._get_duration_histogram(**kwargs),
             request_hook=kwargs.get("request_hook"),
             response_hook=kwargs.get("response_hook"),
         )
@@ -701,6 +771,7 @@ class RedisInstrumentor(BaseInstrumentor):
         tracer_provider: TracerProvider | None = None,
         request_hook: RequestHook | None = None,
         response_hook: ResponseHook | None = None,
+        meter_provider: MeterProvider | None = None,
     ):
         """Instrument the provided Redis Client. The client can be sync or async.
         Cluster client is also supported.
@@ -708,6 +779,7 @@ class RedisInstrumentor(BaseInstrumentor):
         Args:
             client: The redis client.
             tracer_provider: A TracerProvider, defaults to global.
+            meter_provider: A MeterProvider, defaults to global.
             request_hook: a function with extra user-defined logic to run before
                 performing the request.
 
@@ -730,6 +802,7 @@ class RedisInstrumentor(BaseInstrumentor):
             _instrument_client(
                 client,
                 RedisInstrumentor._get_tracer(tracer_provider=tracer_provider),
+                RedisInstrumentor._get_duration_histogram(meter_provider=meter_provider),
                 request_hook=request_hook,
                 response_hook=response_hook,
             )

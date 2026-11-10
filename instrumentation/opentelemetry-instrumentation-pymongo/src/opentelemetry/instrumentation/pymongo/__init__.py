@@ -45,6 +45,7 @@ API
 The `instrument` method accepts the following keyword args:
 
 * tracer_provider (``TracerProvider``) - an optional tracer provider
+* meter_provider (``MeterProvider``) - an optional meter provider
 * request_hook (``Callable[[Span, CommandStartedEvent], None]``) - a function with extra user-defined logic to be performed before querying mongodb
 * response_hook (``Callable[[Span, CommandSucceededEvent], None]``) - a function with extra user-defined logic to be performed after the query returns with a successful response
 * failed_hook (``Callable[[Span, CommandFailedEvent], None]``) - a function with extra user-defined logic to be performed after the query returns with a failed response
@@ -89,6 +90,7 @@ from typing import Any, TypeVar
 from pymongo import monitoring
 
 from opentelemetry.instrumentation._semconv import (
+    _db_client_operation_duration_attributes,
     _get_schema_url_for_signal_types,
     _OpenTelemetrySemanticConventionStability,
     _OpenTelemetryStabilitySignalType,
@@ -108,12 +110,18 @@ from opentelemetry.instrumentation.pymongo.utils import (
 )
 from opentelemetry.instrumentation.pymongo.version import __version__
 from opentelemetry.instrumentation.utils import is_instrumentation_enabled
+from opentelemetry.metrics import Histogram, get_meter
 from opentelemetry.semconv._incubating.attributes.db_attributes import (
     DB_MONGODB_COLLECTION,
+    DbSystemNameValues,
     DbSystemValues,
+)
+from opentelemetry.semconv._incubating.metrics.db_metrics import (
+    create_db_client_operation_duration,
 )
 from opentelemetry.semconv.attributes.db_attributes import DB_COLLECTION_NAME
 from opentelemetry.semconv.attributes.error_attributes import ERROR_TYPE
+from opentelemetry.semconv.schemas import Schemas
 from opentelemetry.trace import SpanKind, Tracer, get_tracer
 from opentelemetry.trace.span import Span
 from opentelemetry.trace.status import Status, StatusCode
@@ -139,6 +147,7 @@ class CommandTracer(monitoring.CommandListener):
     def __init__(
         self,
         tracer: Tracer,
+        duration_histogram: Histogram | None = None,
         request_hook: RequestHookT = dummy_callback,
         response_hook: ResponseHookT = dummy_callback,
         failed_hook: FailedHookT = dummy_callback,
@@ -146,6 +155,9 @@ class CommandTracer(monitoring.CommandListener):
         semconv_opt_in_mode: _StabilityMode = _StabilityMode.DEFAULT,
     ):
         self._tracer = tracer
+        self._duration_histogram = duration_histogram or create_db_client_operation_duration(
+            get_meter(__name__, __version__, schema_url=Schemas.V1_33_0.value)
+        )
         self._span_dict = {}
         self.is_enabled = True
         self.start_hook = request_hook
@@ -216,6 +228,24 @@ class CommandTracer(monitoring.CommandListener):
                 span.end()
                 self._pop_span(event)
 
+    def _record_operation_duration(
+        self,
+        event: monitoring.CommandSucceededEvent | monitoring.CommandFailedEvent,
+        error_type: str | None = None,
+    ) -> None:
+        """Record the duration pymongo measured for a finished command."""
+        connection_id = event.connection_id
+        attributes = _db_client_operation_duration_attributes(
+            DbSystemNameValues.MONGODB.value,
+            operation_name=event.command_name,
+            namespace=event.database_name,
+            server_address=connection_id[0] if connection_id is not None else None,
+            server_port=connection_id[1] if connection_id is not None else None,
+        )
+        if error_type is not None:
+            attributes[ERROR_TYPE] = error_type
+        self._duration_histogram.record(event.duration_micros / 1_000_000, attributes=attributes)
+
     def succeeded(self, event: monitoring.CommandSucceededEvent):
         """Method to handle a pymongo CommandSucceededEvent"""
         if not self.is_enabled or not is_instrumentation_enabled():
@@ -223,6 +253,7 @@ class CommandTracer(monitoring.CommandListener):
         span = self._pop_span(event)
         if span is None:
             return
+        self._record_operation_duration(event)
         if span.is_recording():
             try:
                 self.success_hook(span, event)
@@ -239,6 +270,8 @@ class CommandTracer(monitoring.CommandListener):
         span = self._pop_span(event)
         if span is None:
             return
+        error_type = event.failure.get("codeName", "UnknownError")
+        self._record_operation_duration(event, error_type)
         if span.is_recording():
             span.set_status(
                 Status(
@@ -247,7 +280,7 @@ class CommandTracer(monitoring.CommandListener):
                 )
             )
             if _report_new(self._semconv_opt_in_mode):
-                span.set_attribute(ERROR_TYPE, event.failure.get("codeName", "UnknownError"))
+                span.set_attribute(ERROR_TYPE, error_type)
             try:
                 self.failed_hook(span, event)
             except (
@@ -321,9 +354,16 @@ class PymongoInstrumentor(BaseInstrumentor):
                 tracer_provider,
                 schema_url=_get_schema_url_for_signal_types([_OpenTelemetryStabilitySignalType.DATABASE]),
             )
+            meter = get_meter(
+                __name__,
+                __version__,
+                kwargs.get("meter_provider"),
+                schema_url=Schemas.V1_33_0.value,
+            )
 
             self._commandtracer_instance = CommandTracer(
                 tracer,
+                create_db_client_operation_duration(meter),
                 request_hook=request_hook,
                 response_hook=response_hook,
                 failed_hook=failed_hook,

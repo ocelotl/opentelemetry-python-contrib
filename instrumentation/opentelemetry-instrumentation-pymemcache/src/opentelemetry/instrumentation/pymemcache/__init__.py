@@ -34,9 +34,11 @@ import pymemcache
 from wrapt import wrap_function_wrapper as _wrap
 
 from opentelemetry.instrumentation._semconv import (
+    _db_client_operation_duration_attributes,
     _get_schema_url_for_signal_types,
     _OpenTelemetrySemanticConventionStability,
     _OpenTelemetryStabilitySignalType,
+    _record_db_client_operation_duration,
     _set_db_statement,
     _set_db_system,
     _set_http_net_peer_name_client,
@@ -47,12 +49,20 @@ from opentelemetry.instrumentation.instrumentor import BaseInstrumentor
 from opentelemetry.instrumentation.pymemcache.package import _instruments
 from opentelemetry.instrumentation.pymemcache.version import __version__
 from opentelemetry.instrumentation.utils import is_instrumentation_enabled, unwrap
+from opentelemetry.metrics import get_meter
+from opentelemetry.semconv._incubating.attributes.db_attributes import (
+    DbSystemNameValues,
+)
 from opentelemetry.semconv._incubating.attributes.net_attributes import (
     NetTransportValues,
+)
+from opentelemetry.semconv._incubating.metrics.db_metrics import (
+    create_db_client_operation_duration,
 )
 from opentelemetry.semconv.attributes.network_attributes import (
     NetworkTransportValues,
 )
+from opentelemetry.semconv.schemas import Schemas
 from opentelemetry.trace import SpanKind, get_tracer
 
 logger = logging.getLogger(__name__)
@@ -87,7 +97,7 @@ COMMANDS = [
 def _with_tracer_wrapper(func):
     """Helper for providing tracer for wrapper functions."""
 
-    def _with_tracer(tracer, cmd, sem_conv_opt_in_mode):
+    def _with_tracer(tracer, duration_histogram, cmd, sem_conv_opt_in_mode):
         def wrapper(wrapped, instance, args, kwargs):
             # prevent double wrapping
             if hasattr(wrapped, "__wrapped__"):
@@ -95,6 +105,7 @@ def _with_tracer_wrapper(func):
 
             return func(
                 tracer,
+                duration_histogram,
                 cmd,
                 sem_conv_opt_in_mode,
                 wrapped,
@@ -109,7 +120,16 @@ def _with_tracer_wrapper(func):
 
 
 @_with_tracer_wrapper
-def _wrap_cmd(tracer, cmd, sem_conv_opt_in_mode, wrapped, instance, args, kwargs):
+def _wrap_cmd(
+    tracer,
+    duration_histogram,
+    cmd,
+    sem_conv_opt_in_mode,
+    wrapped,
+    instance,
+    args,
+    kwargs,
+):
     if not is_instrumentation_enabled():
         return wrapped(*args, **kwargs)
 
@@ -129,7 +149,17 @@ def _wrap_cmd(tracer, cmd, sem_conv_opt_in_mode, wrapped, instance, args, kwargs
         except Exception as ex:  # pylint: disable=broad-except
             logger.warning("Failed to set attributes for pymemcache span %s", str(ex))
 
-        return wrapped(*args, **kwargs)
+        server = getattr(instance, "server", None)
+        server_address = server[0] if isinstance(server, tuple) else server
+        server_port = server[1] if isinstance(server, tuple) else None
+        metric_attributes = _db_client_operation_duration_attributes(
+            DbSystemNameValues.MEMCACHED.value,
+            operation_name=cmd,
+            server_address=server_address,
+            server_port=server_port,
+        )
+        with _record_db_client_operation_duration(duration_histogram, metric_attributes):
+            return wrapped(*args, **kwargs)
 
 
 def _get_query_string(arg):
@@ -204,12 +234,19 @@ class PymemcacheInstrumentor(BaseInstrumentor):
             tracer_provider,
             schema_url=_get_schema_url_for_signal_types([_OpenTelemetryStabilitySignalType.DATABASE]),
         )
+        meter = get_meter(
+            __name__,
+            __version__,
+            kwargs.get("meter_provider"),
+            schema_url=Schemas.V1_33_0.value,
+        )
+        duration_histogram = create_db_client_operation_duration(meter)
 
         for cmd in COMMANDS:
             _wrap(
                 "pymemcache.client.base",
                 f"Client.{cmd}",
-                _wrap_cmd(tracer, cmd, sem_conv_opt_in_mode),
+                _wrap_cmd(tracer, duration_histogram, cmd, sem_conv_opt_in_mode),
             )
 
     def _uninstrument(self, **kwargs):
